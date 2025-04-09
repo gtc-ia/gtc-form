@@ -1,39 +1,16 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Вопрос для AI-ассистента GTC</title>
+  <meta charset="UTF-8" />
+  <title>Форма AI-ассистент GTC</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #0d1117;
-      color: #c9d1d9;
-      padding: 20px;
-    }
-    input, textarea, button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 8px;
-      margin-bottom: 16px;
-      background-color: #161b22;
-      color: #c9d1d9;
-      border: 1px solid #30363d;
-      border-radius: 5px;
-    }
-    button {
-      background-color: #238636;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #2ea043;
-    }
-    .success {
-      color: #3fb950;
-    }
-    .error {
-      color: #f85149;
-    }
+    body { font-family: sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 2rem; }
+    label, input, textarea, button { display: block; margin-bottom: 1rem; width: 100%; max-width: 600px; }
+    input, textarea { padding: 0.5rem; border-radius: 5px; border: none; }
+    button { background-color: #238636; color: white; padding: 0.75rem; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background-color: #2ea043; }
+    .status { margin-top: 1rem; }
   </style>
 </head>
 <body>
@@ -41,44 +18,40 @@
   <p>Введите адрес электронной почты и свой вопрос. Ответ будет отправлен вам — это демонстрация.</p>
   <form id="gtc-form">
     <label for="email">Ваш Email</label>
-    <input type="email" id="email" required>
+    <input type="email" id="email" name="email" required />
 
     <label for="prompt">Вопрос / Запрос</label>
-    <textarea id="prompt" rows="5" required></textarea>
+    <textarea id="prompt" name="prompt" required></textarea>
 
     <button type="submit">Отправить</button>
-    <p id="status"></p>
+    <div class="status" id="status"></div>
   </form>
 
   <script>
-    document.getElementById('gtc-form').addEventListener('submit', async function(event) {
-      event.preventDefault();
+    const form = document.getElementById("gtc-form");
+    const status = document.getElementById("status");
 
-      const email = document.getElementById('email').value;
-      const prompt = document.getElementById('prompt').value;
-      const status = document.getElementById('status');
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      status.textContent = "Отправка...";
+
+      const data = {
+        email: form.email.value,
+        prompt: form.prompt.value
+      };
 
       try {
-        const response = await fetch("https://kfilipenko.app.n8n.cloud/webhook-test/user-prompt", {
+        const res = await fetch("https://kfilipenko.app.n8n.cloud/webhook-test/gtc-form-test", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ email, prompt, source: "github" })
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
         });
 
-        if (response.ok) {
-          status.textContent = "✅ Вопрос отправлен!";
-          status.className = "success";
-          document.getElementById('gtc-form').reset();
-        } else {
-          status.textContent = "❌ Ошибка при отправке.";
-          status.className = "error";
-        }
-      } catch (error) {
-        status.textContent = "❌ Ошибка подключения.";
-        status.className = "error";
-        console.error(error);
+        const result = await res.json();
+        status.textContent = "✅ Вопрос отправлен! AI-ассистент скоро ответит.";
+        form.reset();
+      } catch (err) {
+        status.textContent = "❌ Ошибка при отправке. Попробуйте позже.";
       }
     });
   </script>
