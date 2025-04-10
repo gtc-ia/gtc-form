@@ -1,59 +1,55 @@
+<!-- GTC AI Assistant Form Trigger: Unified Access Form -->
+<form method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/user-access" target="_blank" style="
+  max-width: 420px;
+  margin: auto;
+  padding: 2rem;
+  background: #1a1a1a;
+  border-radius: 12px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #fff;
+  box-shadow: 0 0 24px rgba(0,0,0,0.3);
+">
+  <h2 style="text-align:center;margin-bottom:1rem">Добро пожаловать в GTC</h2>
 
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <title>Форма AI-ассистент GTC</title>
-  <style>
-    body { font-family: sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 2rem; }
-    label, input, textarea, button { display: block; margin-bottom: 1rem; width: 100%; max-width: 600px; }
-    input, textarea { padding: 0.5rem; border-radius: 5px; border: none; }
-    button { background-color: #238636; color: white; padding: 0.75rem; border: none; border-radius: 5px; cursor: pointer; }
-    button:hover { background-color: #2ea043; }
-    .status { margin-top: 1rem; }
-  </style>
-</head>
-<body>
-  <h2>Вопрос для AI-ассистента GTC</h2>
-  <p>Введите адрес электронной почты и свой вопрос. Ответ будет отправлен вам — это демонстрация.</p>
-  <form id="gtc-form">
-    <label for="email">Ваш Email</label>
-    <input type="email" id="email" name="email" required />
+  <!-- Email (used for both login/registration check) -->
+  <label for="email">Email</label>
+  <input type="email" name="email" required style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none">
 
-    <label for="prompt">Вопрос / Запрос</label>
-    <textarea id="prompt" name="prompt" required></textarea>
+  <!-- Name (only required for new users) -->
+  <label for="name">Имя (только для регистрации)</label>
+  <input type="text" name="name" style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none">
 
-    <button type="submit">Отправить</button>
-    <div class="status" id="status"></div>
-  </form>
+  <!-- Source -->
+  <label for="source">Источник</label>
+  <select name="source" required style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none">
+    <option value="telegram">Telegram</option>
+    <option value="web">Web-сайт</option>
+    <option value="github">GitHub Pages</option>
+    <option value="wix">Wix</option>
+    <option value="tilda">Tilda</option>
+    <option value="other">Другое</option>
+  </select>
 
-  <script>
-    const form = document.getElementById("gtc-form");
-    const status = document.getElementById("status");
+  <!-- Prompt / запрос -->
+  <label for="prompt">Ваш вопрос или запрос</label>
+  <textarea name="prompt" rows="4" required style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none"></textarea>
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      status.textContent = "Отправка...";
+  <!-- Hidden field for time (n8n will add timestamp too) -->
+  <input type="hidden" name="executionMode" value="user-form" />
 
-      const data = {
-        email: form.email.value,
-        prompt: form.prompt.value
-      };
+  <!-- Submit -->
+  <button type="submit" style="
+    background: #4caf50;
+    color: white;
+    padding: 0.7rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    width: 100%;
+  ">Продолжить</button>
 
-      try {
-        const res = await fetch("https://kfilipenko.app.n8n.cloud/webhook-test/gtc-form-test", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
-
-        const result = await res.json();
-        status.textContent = "✅ Вопрос отправлен! AI-ассистент скоро ответит.";
-        form.reset();
-      } catch (err) {
-        status.textContent = "❌ Ошибка при отправке. Попробуйте позже.";
-      }
-    });
-  </script>
-</body>
-</html>
+  <p style="font-size: 0.8rem; text-align: center; margin-top: 1rem; color: #bbb">
+    Отправляя форму, вы соглашаетесь с политикой конфиденциальности.
+  </p>
+</form>
