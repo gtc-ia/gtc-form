@@ -1,5 +1,6 @@
-<!-- GTC AI Assistant Form Trigger: Unified Access Form -->
-<form method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/user-access" target="_blank" style="
+
+<!-- GTC Unified Access Form (Registration/Login) -->
+<form method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/user-access" target="_blank" onsubmit="return handleFormSubmit(event)" style="
   max-width: 420px;
   margin: auto;
   padding: 2rem;
@@ -11,17 +12,23 @@
 ">
   <h2 style="text-align:center;margin-bottom:1rem">Добро пожаловать в GTC</h2>
 
-  <!-- Email (used for both login/registration check) -->
+  <label for="mode">Выберите действие:</label>
+  <select name="mode" id="mode" required>
+    <option value="login">Вход</option>
+    <option value="register">Регистрация</option>
+  </select>
+
   <label for="email">Email</label>
-  <input type="email" id="email" name="email" required style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none">
+  <input type="email" id="email" name="email" required>
 
-  <!-- Name (only required for new users) -->
-  <label for="name">Имя (только для регистрации)</label>
-  <input type="text" id="name" name="name" style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none">
+  <label for="name">Имя (только при регистрации)</label>
+  <input type="text" id="name" name="name">
 
-  <!-- Source -->
+  <label for="password">Пароль</label>
+  <input type="password" id="password" name="password" required>
+
   <label for="source">Источник</label>
-  <select id="source" name="source" required style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none">
+  <select name="source" id="source" required>
     <option value="telegram">Telegram</option>
     <option value="web">Web-сайт</option>
     <option value="github">GitHub Pages</option>
@@ -30,26 +37,32 @@
     <option value="other">Другое</option>
   </select>
 
-  <!-- Prompt / запрос -->
   <label for="prompt">Ваш вопрос или запрос</label>
-  <textarea name="prompt" rows="4" required style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none"></textarea>
+  <textarea id="prompt" name="prompt" rows="4" required></textarea>
 
-  <!-- Hidden field for time (n8n will add timestamp too) -->
   <input type="hidden" name="executionMode" value="user-form" />
 
-  <!-- Submit -->
-  <button type="submit" style="
-    background: #4caf50;
-    color: white;
-    padding: 0.7rem 1.5rem;
-    border: none;
-    border-radius: 6px;
-    font-size: 1rem;
-    cursor: pointer;
-    width: 100%;
-  ">Продолжить</button>
+  <button type="submit">Продолжить</button>
 
-  <p style="font-size: 0.8rem; text-align: center; margin-top: 1rem; color: #bbb">
-    Отправляя форму, вы соглашаетесь с политикой конфиденциальности.
-  </p>
+  <p id="confirmation" style="display:none;color:#8bc34a;text-align:center;">✅ Запрос отправлен! Спасибо.</p>
 </form>
+
+<script>
+function handleFormSubmit(event) {
+  const form = event.target;
+  const passwordInput = form.querySelector('#password');
+  const password = passwordInput.value;
+  const hashed = btoa(unescape(encodeURIComponent(password)));
+  const hiddenInput = document.createElement('input');
+  hiddenInput.type = 'hidden';
+  hiddenInput.name = 'password';
+  hiddenInput.value = hashed;
+  form.appendChild(hiddenInput);
+  passwordInput.disabled = true;
+  setTimeout(() => {
+    form.style.display = 'none';
+    document.getElementById('confirmation').style.display = 'block';
+  }, 200);
+  return true;
+}
+</script>
