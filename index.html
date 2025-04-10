@@ -1,4 +1,4 @@
-<!-- GTC AI Assistant Unified Access Form (Login or Registration) -->
+<!-- GTC AI Assistant Form Trigger: Unified Access Form -->
 <form method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/user-access" target="_blank" style="
   max-width: 420px;
   margin: auto;
@@ -11,24 +11,13 @@
 ">
   <h2 style="text-align:center;margin-bottom:1rem">Добро пожаловать в GTC</h2>
 
-  <!-- Mode Toggle -->
-  <label for="mode">Выберите действие:</label>
-  <select name="mode" required style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none">
-    <option value="login">Вход</option>
-    <option value="register">Регистрация</option>
-  </select>
-
-  <!-- Email -->
+  <!-- Email (used for both login/registration check) -->
   <label for="email">Email</label>
   <input type="email" name="email" required style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none">
 
-  <!-- Name (only for registration) -->
+  <!-- Name (only required for new users) -->
   <label for="name">Имя (только для регистрации)</label>
   <input type="text" name="name" style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none">
-
-  <!-- Password -->
-  <label for="password">Пароль</label>
-  <input type="password" name="password" required style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none">
 
   <!-- Source -->
   <label for="source">Источник</label>
@@ -45,7 +34,7 @@
   <label for="prompt">Ваш вопрос или запрос</label>
   <textarea name="prompt" rows="4" required style="width:100%;padding:0.5rem;margin-bottom:1rem;border-radius:6px;border:none"></textarea>
 
-  <!-- Hidden field for execution mode -->
+  <!-- Hidden field for time (n8n will add timestamp too) -->
   <input type="hidden" name="executionMode" value="user-form" />
 
   <!-- Submit -->
