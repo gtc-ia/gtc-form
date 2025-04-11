@@ -1,148 +1,140 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GTC Access Form</title>
-  <link rel="icon" href="Logo GTC G.jpeg" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GTC Access</title>
+  <link rel="icon" href="https://kfilipenko.github.io/gtc-form/assets/logo.png">
   <style>
     body {
-      background-color: #0e1117;
-      color: #ffffff;
+      background-color: #0e0e11;
+      color: #fff;
       font-family: 'Segoe UI', sans-serif;
       display: flex;
-      flex-direction: column;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       height: 100vh;
       margin: 0;
     }
-
-    img.logo {
-      width: 80px;
-      margin-bottom: 1rem;
-    }
-
-    form {
-      background-color: #161b22;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 0 24px rgba(0, 0, 0, 0.3);
+    .form-container {
       width: 100%;
       max-width: 400px;
+      padding: 2rem;
+      background: #1a1a1a;
+      border-radius: 12px;
+      box-shadow: 0 0 24px rgba(0,0,0,0.4);
     }
-
-    h2 {
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-
-    label {
+    .form-container img {
       display: block;
-      margin-top: 1rem;
-      margin-bottom: 0.5rem;
+      margin: 0 auto 1rem;
+      width: 64px;
+      height: 64px;
     }
-
-    input, select, textarea {
+    .form-container h2 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    label, select, input, textarea, button {
       width: 100%;
+      margin-top: 0.75rem;
+    }
+    input, select, textarea {
       padding: 0.6rem;
       border-radius: 6px;
       border: none;
-      background-color: #0d1117;
+      background: #2b2b2b;
       color: white;
     }
-
     button {
       margin-top: 1.5rem;
-      width: 100%;
-      padding: 0.75rem;
-      background-color: #238636;
-      border: none;
+      padding: 0.7rem;
+      background-color: #2563eb;
       color: white;
       font-weight: bold;
-      border-radius: 8px;
+      border: none;
+      border-radius: 6px;
       cursor: pointer;
-      transition: background 0.3s;
     }
-
     button:hover {
-      background-color: #2ea043;
+      background-color: #1e40af;
     }
-
-    .confirmation {
-      margin-top: 1rem;
-      color: #8bc34a;
+    #response {
       text-align: center;
-      font-weight: bold;
+      margin-top: 1.5rem;
+      color: #8bc34a;
     }
   </style>
 </head>
 <body>
-
-  <img src="Logo GTC G.jpeg" alt="GTC Logo" class="logo" />
-
-  <form method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/user-access" onsubmit="return handleFormSubmit(event)">
+  <div class="form-container" id="gtc-form">
+    <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo">
     <h2>Welcome to GTC</h2>
+    <form id="accessForm">
+      <label for="mode">Select an action:</label>
+      <select name="mode" id="mode" required>
+        <option value="login">Login</option>
+        <option value="register">Register</option>
+      </select>
 
-    <label for="mode">Select an action:</label>
-    <select name="mode" id="mode" required>
-      <option value="login">Login</option>
-      <option value="register">Register</option>
-    </select>
+      <label for="email">Email</label>
+      <input type="email" name="email" id="email" required>
 
-    <label for="email">Email</label>
-    <input type="email" id="email" name="email" required />
+      <label for="name">Name (when registering)</label>
+      <input type="text" name="name" id="name">
 
-    <label for="name">Name (when registering)</label>
-    <input type="text" id="name" name="name" />
+      <label for="password">Password</label>
+      <input type="password" name="password" id="password" required>
 
-    <label for="password">Password</label>
-    <input type="password" id="password" name="password" required />
+      <label for="source">Source</label>
+      <select name="source" id="source" required>
+        <option value="telegram">Telegram</option>
+        <option value="web">Website</option>
+        <option value="github">GitHub</option>
+        <option value="wix">Wix</option>
+        <option value="tilda">Tilda</option>
+        <option value="other">Other</option>
+      </select>
 
-    <label for="source">Source</label>
-    <select name="source" id="source" required>
-      <option value="telegram">Telegram</option>
-      <option value="web">Web</option>
-      <option value="github">GitHub Pages</option>
-      <option value="wix">Wix</option>
-      <option value="tilda">Tilda</option>
-      <option value="other">Other</option>
-    </select>
+      <label for="prompt">Your question or request</label>
+      <textarea name="prompt" id="prompt" rows="3" required></textarea>
 
-    <label for="prompt">Your question or request</label>
-    <textarea id="prompt" name="prompt" rows="3" required></textarea>
-
-    <input type="hidden" name="executionMode" value="user-form" />
-
-    <button type="submit">Continue</button>
-
-    <div id="confirmation" class="confirmation" style="display: none;">
-      ✅ Data written successfully
-    </div>
-  </form>
+      <input type="hidden" name="executionMode" value="user-form">
+      <button type="submit">Continue</button>
+    </form>
+    <div id="response"></div>
+  </div>
 
   <script>
-    function handleFormSubmit(event) {
-      const form = event.target;
-      const passwordInput = form.querySelector('#password');
-      const password = passwordInput.value;
-      const hashed = btoa(unescape(encodeURIComponent(password)));
+    const form = document.getElementById('accessForm');
+    const responseBox = document.getElementById('response');
+    const formContainer = document.getElementById('gtc-form');
 
-      const hiddenPasswordInput = document.createElement('input');
-      hiddenPasswordInput.type = 'hidden';
-      hiddenPasswordInput.name = 'password';
-      hiddenPasswordInput.value = hashed;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
 
-      form.appendChild(hiddenPasswordInput);
-      passwordInput.disabled = true;
+      const data = new FormData(form);
+      const payload = new URLSearchParams();
+      for (const [key, value] of data.entries()) {
+        if (key === 'password') {
+          payload.append(key, btoa(unescape(encodeURIComponent(value))));
+        } else {
+          payload.append(key, value);
+        }
+      }
 
-      setTimeout(() => {
+      try {
+        const res = await fetch('https://kfilipenko.app.n8n.cloud/webhook/user-access', {
+          method: 'POST',
+          body: payload,
+        });
+
+        const json = await res.json();
         form.style.display = 'none';
-        document.getElementById('confirmation').style.display = 'block';
-      }, 100);
-
-      return true;
-    }
+        responseBox.innerText = `✅ ${json.message || 'Submitted successfully'}`;
+      } catch (err) {
+        responseBox.innerText = '❌ Submission failed. Try again later.';
+      }
+    });
   </script>
 </body>
 </html>
