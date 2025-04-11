@@ -1,152 +1,148 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GTC Вход / Регистрация</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GTC Access Form</title>
+  <link rel="icon" href="Logo GTC G.jpeg" />
   <style>
     body {
-      margin: 0;
+      background-color: #0e1117;
+      color: #ffffff;
       font-family: 'Segoe UI', sans-serif;
-      background: #0d1117;
-      color: #fff;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
       height: 100vh;
+      margin: 0;
     }
-    .gtc-form {
+
+    img.logo {
+      width: 80px;
+      margin-bottom: 1rem;
+    }
+
+    form {
       background-color: #161b22;
-      border-radius: 12px;
       padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 0 24px rgba(0, 0, 0, 0.3);
       width: 100%;
-      max-width: 420px;
-      box-shadow: 0 0 24px rgba(0, 0, 0, 0.4);
+      max-width: 400px;
     }
-    .gtc-form h2 {
+
+    h2 {
       text-align: center;
       margin-bottom: 1rem;
     }
-    .gtc-form label {
+
+    label {
       display: block;
       margin-top: 1rem;
-      margin-bottom: 0.25rem;
-      font-weight: bold;
+      margin-bottom: 0.5rem;
     }
-    .gtc-form input,
-    .gtc-form select,
-    .gtc-form textarea,
-    .gtc-form button {
+
+    input, select, textarea {
       width: 100%;
       padding: 0.6rem;
       border-radius: 6px;
       border: none;
-      margin-bottom: 0.5rem;
-      font-size: 1rem;
-    }
-    .gtc-form input,
-    .gtc-form select,
-    .gtc-form textarea {
-      background: #0d1117;
-      color: #fff;
-      border: 1px solid #30363d;
-    }
-    .gtc-form button {
-      background-color: #1f6feb;
+      background-color: #0d1117;
       color: white;
-      cursor: pointer;
+    }
+
+    button {
+      margin-top: 1.5rem;
+      width: 100%;
+      padding: 0.75rem;
+      background-color: #238636;
+      border: none;
+      color: white;
       font-weight: bold;
-      margin-top: 1rem;
-    }
-    .gtc-form button:hover {
-      background-color: #388bfd;
-    }
-    #confirmation {
-      display: none;
-      text-align: center;
-      margin-top: 1rem;
-      font-weight: bold;
-    }
-    #gtc-logo {
-      display: block;
-      margin: 0 auto 1rem auto;
-      max-width: 80px;
       border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background-color: #2ea043;
+    }
+
+    .confirmation {
+      margin-top: 1rem;
+      color: #8bc34a;
+      text-align: center;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <form class="gtc-form" id="gtc-form">
-    <img id="gtc-logo" src="Logo%20GTC%20G.jpeg" alt="GTC Logo" />
-    <h2>Добро пожаловать в GTC</h2>
 
-    <label for="mode">Выберите действие:</label>
+  <img src="Logo GTC G.jpeg" alt="GTC Logo" class="logo" />
+
+  <form method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/user-access" onsubmit="return handleFormSubmit(event)">
+    <h2>Welcome to GTC</h2>
+
+    <label for="mode">Select an action:</label>
     <select name="mode" id="mode" required>
-      <option value="login">Вход</option>
-      <option value="register">Регистрация</option>
+      <option value="login">Login</option>
+      <option value="register">Register</option>
     </select>
 
     <label for="email">Email</label>
     <input type="email" id="email" name="email" required />
 
-    <label for="name">Имя (при регистрации)</label>
+    <label for="name">Name (when registering)</label>
     <input type="text" id="name" name="name" />
 
-    <label for="password">Пароль</label>
+    <label for="password">Password</label>
     <input type="password" id="password" name="password" required />
 
-    <label for="source">Источник</label>
+    <label for="source">Source</label>
     <select name="source" id="source" required>
       <option value="telegram">Telegram</option>
-      <option value="web">Web-сайт</option>
+      <option value="web">Web</option>
       <option value="github">GitHub Pages</option>
       <option value="wix">Wix</option>
       <option value="tilda">Tilda</option>
-      <option value="other">Другое</option>
+      <option value="other">Other</option>
     </select>
 
-    <label for="prompt">Ваш вопрос или запрос</label>
-    <textarea id="prompt" name="prompt" rows="4" required></textarea>
+    <label for="prompt">Your question or request</label>
+    <textarea id="prompt" name="prompt" rows="3" required></textarea>
 
     <input type="hidden" name="executionMode" value="user-form" />
-    <button type="submit">Продолжить</button>
-    <p id="confirmation"></p>
+
+    <button type="submit">Continue</button>
+
+    <div id="confirmation" class="confirmation" style="display: none;">
+      ✅ Data written successfully
+    </div>
   </form>
 
   <script>
-    document.getElementById('gtc-form').addEventListener('submit', async function (e) {
-      e.preventDefault();
-
-      const form = e.target;
-      const formData = new FormData(form);
-
-      // Хэшируем пароль
-      const password = form.querySelector('#password').value;
+    function handleFormSubmit(event) {
+      const form = event.target;
+      const passwordInput = form.querySelector('#password');
+      const password = passwordInput.value;
       const hashed = btoa(unescape(encodeURIComponent(password)));
-      formData.set('password', hashed);
 
-      const confirmation = document.getElementById('confirmation');
-      confirmation.textContent = '⏳ Отправка...';
-      confirmation.style.display = 'block';
+      const hiddenPasswordInput = document.createElement('input');
+      hiddenPasswordInput.type = 'hidden';
+      hiddenPasswordInput.name = 'password';
+      hiddenPasswordInput.value = hashed;
 
-      try {
-        const response = await fetch('https://kfilipenko.app.n8n.cloud/webhook/user-access', {
-          method: 'POST',
-          body: formData
-        });
+      form.appendChild(hiddenPasswordInput);
+      passwordInput.disabled = true;
 
-        const result = await response.json();
+      setTimeout(() => {
+        form.style.display = 'none';
+        document.getElementById('confirmation').style.display = 'block';
+      }, 100);
 
-        if (result.status === 'ok') {
-          confirmation.textContent = `✅ ${result.message}`;
-          form.reset();
-        } else {
-          confirmation.textContent = '❌ Ошибка. Попробуйте ещё раз.';
-        }
-      } catch (error) {
-        confirmation.textContent = '❌ Ошибка соединения с сервером.';
-      }
-    });
+      return true;
+    }
   </script>
 </body>
 </html>
