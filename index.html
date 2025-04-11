@@ -1,140 +1,85 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GTC Access</title>
-  <link rel="icon" href="https://kfilipenko.github.io/gtc-form/assets/logo.png">
-  <style>
-    body {
-      background-color: #0e0e11;
-      color: #fff;
-      font-family: 'Segoe UI', sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .form-container {
-      width: 100%;
-      max-width: 400px;
-      padding: 2rem;
-      background: #1a1a1a;
-      border-radius: 12px;
-      box-shadow: 0 0 24px rgba(0,0,0,0.4);
-    }
-    .form-container img {
-      display: block;
-      margin: 0 auto 1rem;
-      width: 64px;
-      height: 64px;
-    }
-    .form-container h2 {
-      text-align: center;
-      margin-bottom: 1.5rem;
-    }
-    label, select, input, textarea, button {
-      width: 100%;
-      margin-top: 0.75rem;
-    }
-    input, select, textarea {
-      padding: 0.6rem;
-      border-radius: 6px;
-      border: none;
-      background: #2b2b2b;
-      color: white;
-    }
-    button {
-      margin-top: 1.5rem;
-      padding: 0.7rem;
-      background-color: #2563eb;
-      color: white;
-      font-weight: bold;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #1e40af;
-    }
-    #response {
-      text-align: center;
-      margin-top: 1.5rem;
-      color: #8bc34a;
-    }
-  </style>
-</head>
-<body>
-  <div class="form-container" id="gtc-form">
-    <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo">
-    <h2>Welcome to GTC</h2>
-    <form id="accessForm">
-      <label for="mode">Select an action:</label>
-      <select name="mode" id="mode" required>
-        <option value="login">Login</option>
-        <option value="register">Register</option>
-      </select>
+<!-- ...предыдущая разметка до формы... -->
+<form id="gtc-form" method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/user-access" target="_blank" onsubmit="return handleFormSubmit(event)">
+  <!-- Select mode -->
+  <label for="mode">Select an action:</label>
+  <select name="mode" id="mode" required>
+    <option value="login" selected>Login</option>
+    <option value="register">Register</option>
+  </select>
 
-      <label for="email">Email</label>
-      <input type="email" name="email" id="email" required>
+  <!-- Email -->
+  <label for="email">Email</label>
+  <input type="email" id="email" name="email" required />
 
-      <label for="name">Name (when registering)</label>
-      <input type="text" name="name" id="name">
-
-      <label for="password">Password</label>
-      <input type="password" name="password" id="password" required>
-
-      <label for="source">Source</label>
-      <select name="source" id="source" required>
-        <option value="telegram">Telegram</option>
-        <option value="web">Website</option>
-        <option value="github">GitHub</option>
-        <option value="wix">Wix</option>
-        <option value="tilda">Tilda</option>
-        <option value="other">Other</option>
-      </select>
-
-      <label for="prompt">Your question or request</label>
-      <textarea name="prompt" id="prompt" rows="3" required></textarea>
-
-      <input type="hidden" name="executionMode" value="user-form">
-      <button type="submit">Continue</button>
-    </form>
-    <div id="response"></div>
+  <!-- Name — shown only for register -->
+  <div id="name-group" style="display: none;">
+    <label for="name">Name (only when registering)</label>
+    <input type="text" id="name" name="name" />
   </div>
 
-  <script>
-    const form = document.getElementById('accessForm');
-    const responseBox = document.getElementById('response');
-    const formContainer = document.getElementById('gtc-form');
+  <!-- Password -->
+  <label for="password">Password</label>
+  <input type="password" id="password" name="password" required />
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+  <!-- Source -->
+  <label for="source">Source</label>
+  <select name="source" id="source" required>
+    <option value="telegram">Telegram</option>
+    <option value="web">Web</option>
+    <option value="github">GitHub</option>
+    <option value="wix">Wix</option>
+    <option value="tilda">Tilda</option>
+    <option value="other">Other</option>
+  </select>
 
-      const data = new FormData(form);
-      const payload = new URLSearchParams();
-      for (const [key, value] of data.entries()) {
-        if (key === 'password') {
-          payload.append(key, btoa(unescape(encodeURIComponent(value))));
-        } else {
-          payload.append(key, value);
-        }
-      }
+  <!-- Prompt -->
+  <label for="prompt">Your question or request</label>
+  <textarea id="prompt" name="prompt" rows="4" required></textarea>
 
-      try {
-        const res = await fetch('https://kfilipenko.app.n8n.cloud/webhook/user-access', {
-          method: 'POST',
-          body: payload,
-        });
+  <input type="hidden" name="executionMode" value="user-form" />
+  <button type="submit">Continue</button>
 
-        const json = await res.json();
-        form.style.display = 'none';
-        responseBox.innerText = `✅ ${json.message || 'Submitted successfully'}`;
-      } catch (err) {
-        responseBox.innerText = '❌ Submission failed. Try again later.';
-      }
+  <!-- Response block -->
+  <div id="response-block" style="display:none; margin-top:1em; color: #8bc34a; text-align: center;">
+    ✅ Data written successfully
+  </div>
+</form>
+
+<!-- JS -->
+<script>
+  const form = document.getElementById("gtc-form");
+  const nameGroup = document.getElementById("name-group");
+  const modeSelect = document.getElementById("mode");
+  const responseBlock = document.getElementById("response-block");
+
+  // Toggle name field on mode change
+  modeSelect.addEventListener("change", () => {
+    nameGroup.style.display = modeSelect.value === "register" ? "block" : "none";
+  });
+
+  function handleFormSubmit(event) {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const plainData = Object.fromEntries(formData.entries());
+    plainData.password = btoa(unescape(encodeURIComponent(plainData.password))); // base64 password
+
+    fetch(form.action, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(plainData),
+    })
+    .then(res => res.json())
+    .then(data => {
+      form.style.display = "none";
+      responseBlock.innerText = "✅ Data written successfully"; // Replace if backend returns RU
+      responseBlock.style.display = "block";
+    })
+    .catch(error => {
+      responseBlock.innerText = "❌ Submission failed. Please try again.";
+      responseBlock.style.color = "#f44336";
+      responseBlock.style.display = "block";
     });
-  </script>
-</body>
-</html>
+
+    return false;
+  }
+</script>
