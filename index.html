@@ -3,157 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GTC Unified Access</title>
-  <link rel="icon" href="./assets/logo.png" type="image/png">
+  <title>Register - GTC</title>
   <style>
     body {
-      margin: 0;
-      padding: 0;
-      background: #0e0e0e;
-      font-family: "Segoe UI", sans-serif;
-      color: #fff;
+      font-family: sans-serif;
+      background: #f2f2f2;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
-      height: 100vh;
-    }
-    .form-container {
-      max-width: 400px;
-      width: 90%;
-      background: #1f1f1f;
       padding: 2rem;
-      border-radius: 16px;
-      box-shadow: 0 0 24px rgba(0, 0, 0, 0.4);
-      text-align: center;
     }
-    .form-container img {
-      width: 80px;
-      margin-bottom: 1rem;
+    h1 {
+      color: #333;
     }
-    .form-container h2 {
-      margin-bottom: 1.5rem;
-    }
-    label {
-      display: block;
-      margin-top: 1rem;
-      text-align: left;
-    }
-    input, select, textarea {
+    form {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
       width: 100%;
-      padding: 10px;
-      border-radius: 6px;
-      border: none;
-      margin-top: 0.3rem;
-      background: #2b2b2b;
-      color: #fff;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    input {
+      padding: 0.7rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
     }
     button {
-      margin-top: 1.5rem;
-      width: 100%;
-      padding: 12px;
+      background: #007bff;
+      color: white;
+      padding: 0.8rem;
+      font-size: 1rem;
       border: none;
       border-radius: 8px;
-      background-color: #2962ff;
-      color: #fff;
-      font-weight: bold;
       cursor: pointer;
-      transition: 0.3s;
     }
-    button:hover {
-      background-color: #0039cb;
-    }
-    .confirmation {
-      margin-top: 1.5rem;
-      color: #8bc34a;
-      font-weight: bold;
+    #success {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+      border-radius: 8px;
       display: none;
     }
   </style>
 </head>
 <body>
-  <div class="form-container" id="formWrapper">
-    <img src="./assets/logo.png" alt="Logo" />
-    <h2>Welcome to GTC</h2>
-    <form id="accessForm" method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/user-access" target="_blank">
-      <label for="mode">Select an action:</label>
-      <select name="mode" id="mode" required>
-        <option value="login" selected>Login</option>
-        <option value="register">Register</option>
-      </select>
 
-      <label for="email">Email</label>
-      <input type="email" name="email" id="email" required />
+  <h1>Register for GTC</h1>
 
-      <div id="nameField" style="display:none;">
-        <label for="name">Name (when registering)</label>
-        <input type="text" name="name" id="name" />
-      </div>
+  <form id="registerForm">
+    <input type="text" id="name" placeholder="Your Name" required />
+    <input type="email" id="email" placeholder="Email" required />
+    <input type="password" id="password" placeholder="Password" required />
+    <button type="submit">Register</button>
+  </form>
 
-      <label for="password">Password</label>
-      <input type="password" name="password" id="password" required />
-
-      <label for="source">Source</label>
-      <select name="source" id="source" required>
-        <option value="telegram">Telegram</option>
-        <option value="web">Website</option>
-        <option value="github">GitHub Pages</option>
-        <option value="wix">Wix</option>
-        <option value="tilda">Tilda</option>
-        <option value="other">Other</option>
-      </select>
-
-      <label for="prompt">Your question or request</label>
-      <textarea name="prompt" id="prompt" rows="3" required></textarea>
-
-      <input type="hidden" name="executionMode" value="user-form" />
-      <button type="submit">Continue</button>
-      <p class="confirmation" id="confirmation">✅ Data written successfully</p>
-    </form>
-  </div>
+  <div id="success">✅ You have been registered successfully!</div>
 
   <script>
-    const form = document.getElementById("accessForm");
-    const modeSelect = document.getElementById("mode");
-    const nameField = document.getElementById("nameField");
-    const passwordInput = document.getElementById("password");
-    const confirmation = document.getElementById("confirmation");
-    const formWrapper = document.getElementById("formWrapper");
-
-    modeSelect.addEventListener("change", function () {
-      nameField.style.display = this.value === "register" ? "block" : "none";
-    });
-
-    form.addEventListener("submit", async function (e) {
-      e.preventDefault();
-
-      const formData = new FormData(form);
-      const json = {};
-
-      formData.forEach((value, key) => {
-        if (key === "password") {
-          json[key] = btoa(unescape(encodeURIComponent(value)));
-        } else {
-          json[key] = value;
-        }
-      });
-
-      try {
-        const response = await fetch(form.action, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(json),
-        });
-
-        if (response.ok) {
-          form.style.display = "none";
-          confirmation.style.display = "block";
-        } else {
-          alert("Error: " + (await response.text()));
-        }
-      } catch (err) {
-        alert("Request failed. Please try again.");
-      }
-    });
-  </script>
-</body>
-</html>
+    const form = document.get
