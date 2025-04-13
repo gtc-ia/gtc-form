@@ -67,4 +67,36 @@
   <div id="success">✅ You have been registered successfully!</div>
 
   <script>
-    const form = document.get
+    const form = document.getElementById('registerForm');
+    const success = document.getElementById('success');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const data = {
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value,
+        name: document.getElementById('name').value,
+        source: "GitHubForm",
+        executionMode: "register"
+      };
+
+      const response = await fetch("https://kfilipenko.app.n8n.cloud/webhook/user-register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        form.style.display = 'none';
+        success.style.display = 'block';
+      } else {
+        alert("Something went wrong. Please try again.");
+      }
+    });
+  </script>
+
+</body>
+</html>
