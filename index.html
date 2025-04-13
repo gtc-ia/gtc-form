@@ -1,122 +1,155 @@
-
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Форма GTC</title>
+  <title>GTC Unified Access</title>
+  <link rel="icon" href="./assets/logo.png" type="image/png">
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
+      margin: 0;
+      padding: 0;
+      background: #0e0e0e;
+      font-family: "Segoe UI", sans-serif;
+      color: #fff;
       display: flex;
-      flex-direction: column;
+      justify-content: center;
       align-items: center;
-      padding: 2rem;
+      height: 100vh;
     }
-    img.logo {
-      height: 64px;
-      margin-bottom: 1rem;
-    }
-    h1 {
-      margin-bottom: 1rem;
-      color: #222;
-    }
-    form {
-      background: white;
+    .form-container {
+      max-width: 400px;
+      width: 90%;
+      background: #1f1f1f;
       padding: 2rem;
       border-radius: 16px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 420px;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
+      box-shadow: 0 0 24px rgba(0, 0, 0, 0.4);
+      text-align: center;
     }
-    input, select {
-      padding: 0.8rem;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 8px;
+    .form-container img {
+      width: 80px;
+      margin-bottom: 1rem;
+    }
+    .form-container h2 {
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      text-align: left;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      margin-top: 0.3rem;
+      background: #2b2b2b;
+      color: #fff;
     }
     button {
-      background: #007bff;
-      color: white;
-      padding: 0.9rem;
-      font-size: 1rem;
+      margin-top: 1.5rem;
+      width: 100%;
+      padding: 12px;
       border: none;
       border-radius: 8px;
+      background-color: #2962ff;
+      color: #fff;
+      font-weight: bold;
       cursor: pointer;
+      transition: 0.3s;
     }
-    #success {
-      margin-top: 1rem;
-      padding: 1rem;
-      background: #d4edda;
-      border: 1px solid #c3e6cb;
-      color: #155724;
-      border-radius: 8px;
+    button:hover {
+      background-color: #0039cb;
+    }
+    .confirmation {
+      margin-top: 1.5rem;
+      color: #8bc34a;
+      font-weight: bold;
       display: none;
     }
   </style>
 </head>
 <body>
+  <div class="form-container" id="formWrapper">
+    <img src="./assets/logo.png" alt="Logo" />
+    <h2>Welcome to GTC</h2>
+    <form id="accessForm" method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/user-register">
+      <label for="mode">Select an action:</label>
+      <select name="mode" id="mode" required>
+        <option value="login" selected>Login</option>
+        <option value="register">Register</option>
+      </select>
 
-  <img src="logo.png" alt="GTC Logo" class="logo" />
-  <h1>Зарегистрироваться для участия в GTC</h1>
+      <label for="email">Email</label>
+      <input type="email" name="email" id="email" required />
 
-  <form id="userForm">
-    <select id="mode">
-      <option value="register">Регистрация</option>
-      <option value="login">Вход</option>
-    </select>
-    <input type="text" id="name" placeholder="Ваше имя" required />
-    <input type="email" id="email" placeholder="Email" required />
-    <input type="password" id="password" placeholder="Пароль" required />
-    <button type="submit">Отправить</button>
-  </form>
+      <div id="nameField" style="display:none;">
+        <label for="name">Name (when registering)</label>
+        <input type="text" name="name" id="name" />
+      </div>
 
-  <div id="success">✅ Вы успешно прошли регистрацию!</div>
+      <label for="password">Password</label>
+      <input type="password" name="password" id="password" required />
+
+      <label for="source">Source</label>
+      <select name="source" id="source" required>
+        <option value="telegram">Telegram</option>
+        <option value="web">Website</option>
+        <option value="github" selected>GitHub Pages</option>
+        <option value="wix">Wix</option>
+        <option value="tilda">Tilda</option>
+        <option value="other">Other</option>
+      </select>
+
+      <input type="hidden" name="executionMode" id="executionMode" value="user-form" />
+
+      <button type="submit">Continue</button>
+      <p class="confirmation" id="confirmation">✅ Data written successfully</p>
+    </form>
+  </div>
 
   <script>
-    const form = document.getElementById('userForm');
-    const success = document.getElementById('success');
-    const nameInput = document.getElementById('name');
-    const modeSelect = document.getElementById('mode');
+    const form = document.getElementById("accessForm");
+    const modeSelect = document.getElementById("mode");
+    const nameField = document.getElementById("nameField");
+    const confirmation = document.getElementById("confirmation");
 
-    modeSelect.addEventListener('change', () => {
-      const mode = modeSelect.value;
-      nameInput.style.display = (mode === 'register') ? 'block' : 'none';
-      nameInput.required = (mode === 'register');
+    modeSelect.addEventListener("change", function () {
+      nameField.style.display = this.value === "register" ? "block" : "none";
+      document.getElementById("executionMode").value = this.value;
     });
 
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener("submit", async function (e) {
       e.preventDefault();
 
-      const data = {
-        email: document.getElementById('email').value,
-        password: document.getElementById('password').value,
-        name: nameInput.value,
-        source: "GitHubForm",
-        executionMode: modeSelect.value
-      };
+      const formData = new FormData(form);
+      const json = {};
 
-      const response = await fetch("https://kfilipenko.app.n8n.cloud/webhook/user-register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
+      formData.forEach((value, key) => {
+        json[key] = value;
       });
 
-      if (response.ok) {
-        form.style.display = 'none';
-        success.style.display = 'block';
-      } else {
-        alert("Ошибка. Проверьте введённые данные.");
+      try {
+        const response = await fetch(form.action, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(json),
+        });
+
+        if (response.ok) {
+          form.style.display = "none";
+          confirmation.style.display = "block";
+        } else {
+          alert("Error: " + (await response.text()));
+        }
+      } catch (err) {
+        alert("Request failed. Please try again.");
       }
     });
 
-    // Начальное скрытие поля имени, если режим "login"
-    modeSelect.dispatchEvent(new Event('change'));
+    // Set initial state
+    modeSelect.dispatchEvent(new Event("change"));
   </script>
-
 </body>
 </html>
