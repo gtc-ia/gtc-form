@@ -18,7 +18,7 @@
       height: 100vh;
     }
     .form-container {
-      max-width: 400px;
+      max-width: 420px;
       width: 90%;
       background: #1f1f1f;
       padding: 2rem;
@@ -68,6 +68,11 @@
       font-weight: bold;
       display: none;
     }
+    .verify-message {
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+      color: #aaa;
+    }
   </style>
 </head>
 <body>
@@ -105,7 +110,11 @@
       <input type="hidden" name="executionMode" id="executionMode" value="user-form" />
 
       <button type="submit">Continue</button>
-      <p class="confirmation" id="confirmation">✅ Data written successfully</p>
+      <p class="confirmation" id="confirmation">
+        🎉 Thank you for registering with GTC!<br />
+        Please check your email and confirm your address to activate your account.<br />
+        <span class="verify-message">Once confirmed, you can start using all available features.</span>
+      </p>
     </form>
   </div>
 
@@ -114,6 +123,7 @@
     const modeSelect = document.getElementById("mode");
     const nameField = document.getElementById("nameField");
     const confirmation = document.getElementById("confirmation");
+    const formWrapper = document.getElementById("formWrapper");
 
     modeSelect.addEventListener("change", function () {
       nameField.style.display = this.value === "register" ? "block" : "none";
@@ -149,7 +159,15 @@
     });
 
     // Set initial state
+    // If user came from email confirmation link, show success message
     modeSelect.dispatchEvent(new Event("change"));
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("verified") === "true") {
+      form.style.display = "none";
+      confirmation.style.display = "block";
+      confirmation.innerHTML = "🎉 Your email has been successfully confirmed!<br />You may now log in and start using GTC.";
+    }
   </script>
 </body>
 </html>
