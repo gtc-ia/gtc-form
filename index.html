@@ -2,116 +2,97 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Unified GTC Access</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GTC Unified Access</title>
   <style>
     body {
-      font-family: 'Roboto', sans-serif;
-      background-color: #111;
-      color: #fff;
+      background-color: #0a0a0a;
+      font-family: Arial, sans-serif;
       display: flex;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
       height: 100vh;
       margin: 0;
+      color: white;
     }
     .container {
-      background-color: #1f1f1f;
-      padding: 40px;
+      background-color: #1e1e1e;
+      padding: 30px;
       border-radius: 12px;
-      text-align: center;
-      width: 320px;
-      box-shadow: 0 0 30px rgba(0, 132, 255, 0.2);
-    }
-    .container img {
-      width: 64px;
-      margin-bottom: 20px;
-    }
-    .container h1 {
-      font-size: 20px;
-      margin-bottom: 20px;
-    }
-    .form-group {
-      margin-bottom: 15px;
-      text-align: left;
-    }
-    label {
-      display: block;
-      font-size: 14px;
-      margin-bottom: 5px;
-    }
-    input, select {
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
       width: 100%;
-      padding: 8px;
-      font-size: 14px;
+      max-width: 400px;
+      text-align: center;
+    }
+    select, input, button {
+      width: 100%;
+      margin: 10px 0;
+      padding: 12px;
+      border-radius: 8px;
       border: none;
-      border-radius: 6px;
-      background-color: #333;
-      color: #fff;
+      font-size: 14px;
     }
     button {
-      background-color: #007bff;
+      background-color: #0066ff;
       color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      font-size: 14px;
       cursor: pointer;
-      margin-top: 10px;
-      width: 100%;
     }
     button:hover {
-      background-color: #0056b3;
+      background-color: #0052cc;
     }
-    .message {
-      margin-top: 15px;
+    #message {
+      margin-top: 12px;
       font-size: 14px;
+      font-weight: bold;
     }
     #passwordStrength {
       margin-top: 8px;
       font-size: 12px;
       color: #aaa;
     }
+    label {
+      float: left;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <img src="https://raw.githubusercontent.com/kfilipenko/gtc-form/main/gtc-logo.png" alt="GTC Logo">
-    <h1>Welcome to GTC</h1>
-    <form id="accessForm">
-      <div class="form-group">
-        <label for="action">Select Action:</label>
-        <select id="action" name="action">
-          <option value="register">Register</option>
-          <option value="login">Login</option>
-        </select>
+    <img src="gtc-logo.png" alt="GTC Logo" style="max-width: 60px; margin-bottom: 16px;">
+    <h2>Welcome to GTC</h2>
+    <form id="accessForm" autocomplete="on">
+      <label for="action">Select action:</label>
+      <select id="action">
+        <option value="login" selected>Login</option>
+        <option value="register">Register</option>
+      </select>
+
+      <label for="email">Email address:</label>
+      <input type="email" id="email" name="email" placeholder="Enter your email" autocomplete="email" required />
+
+      <div id="nameGroup" style="display:none;">
+        <label for="name">Display name (for registration):</label>
+        <input type="text" id="name" name="name" placeholder="Enter your name" autocomplete="name" />
       </div>
-      <div class="form-group">
-        <label for="email">Email address:</label>
-        <input type="email" id="email" name="email" required>
-      </div>
-      <div class="form-group" id="nameGroup">
-        <label for="name">Name (only for registration):</label>
-        <input type="text" id="name" name="name">
-      </div>
-      <div class="form-group">
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
-      </div>
-      <div id="passwordStrength">Password strength: </div>
-      <div class="form-group">
-        <label for="source">Source:</label>
-        <select id="source" name="source">
-          <option value="GitHub Page">GitHub Page</option>
-          <option value="Telegram">Telegram</option>
-          <option value="Wix Page">Wix Page</option>
-        </select>
-      </div>
+
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required />
+      <div id="passwordStrength"></div>
+
+      <label for="source">Source:</label>
+      <select id="source">
+        <option value="GitHub Page">GitHub Page</option>
+        <option value="Telegram">Telegram</option>
+        <option value="Google Form">Google Form</option>
+        <option value="Wix">Wix</option>
+        <option value="Other">Other</option>
+      </select>
+
       <button type="submit">Continue</button>
-      <div class="message" id="message"></div>
+      <div id="message"></div>
     </form>
   </div>
-
   <script>
     const form = document.getElementById('accessForm');
     const actionSelect = document.getElementById('action');
@@ -187,7 +168,7 @@
         }
       } catch (error) {
         console.error('Error:', error);
-        messageBox.textContent = '❌ Failed to send request. Please check your connection and try again.';
+        messageBox.textContent = '❌ Request failed. Please check your connection and try again.';
         messageBox.style.color = 'red';
       }
     });
