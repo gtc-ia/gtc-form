@@ -165,11 +165,11 @@
         json[key] = value;
       });
 
-      // Show confirmation immediately for registration
       if (json.mode === "register") {
-        confirmation.textContent = "📧 You submitted a registration form. Please check your email inbox.";
-        confirmation.className = "confirmation info";
-        confirmation.style.display = "block";
+        document.getElementById("formWrapper").innerHTML = `
+          <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" />
+          <h2>📧 You submitted a registration form.<br>Please check your email inbox.</h2>`;
+        return;
       }
 
       try {
