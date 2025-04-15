@@ -117,11 +117,7 @@
       <input type="hidden" name="executionMode" id="executionMode" value="login" />
 
       <button type="submit">Continue</button>
-      <p class="confirmation" id="confirmation">
-        🎉 Thank you for registering with GTC!<br />
-        Please check your email and confirm your address to activate your account.<br />
-        <span class="verify-message">Once confirmed, you can start using all available features.</span>
-      </p>
+      <p class="confirmation" id="confirmation"></p>
     </form>
   </div>
 
@@ -177,12 +173,15 @@
         });
 
         if (response.ok) {
+          form.style.display = "none";
           if (json.mode === "register") {
-            form.style.display = "none";
-            confirmation.style.display = "block";
+            confirmation.textContent =
+              "🎉 Thank you for registering with GTC! Please check your email and confirm your address to activate your account.";
           } else {
-            window.location.href = "?verified=true";
+            confirmation.textContent =
+              "✅ Welcome back to GTC! You have successfully logged in.";
           }
+          confirmation.style.display = "block";
         } else {
           alert("Error: " + (await response.text()));
         }
@@ -191,14 +190,15 @@
       }
     });
 
+    modeSelect.dispatchEvent(new Event("change"));
+
     const params = new URLSearchParams(window.location.search);
     if (params.get("verified") === "true") {
       form.style.display = "none";
       confirmation.style.display = "block";
-      confirmation.innerHTML = "🎉 Your email has been successfully confirmed!<br />You may now log in and start using GTC.";
+      confirmation.innerHTML =
+        "🎉 Your email has been successfully confirmed!<br />You may now log in and start using GTC.";
     }
-
-    modeSelect.dispatchEvent(new Event("change"));
   </script>
 </body>
 </html>
