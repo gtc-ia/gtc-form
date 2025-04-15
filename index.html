@@ -38,7 +38,7 @@
       margin-top: 1rem;
       text-align: left;
     }
-    input, select, textarea {
+    input, select {
       width: 100%;
       padding: 10px;
       border-radius: 6px;
@@ -79,6 +79,7 @@
     }
     .success { color: #8bc34a; }
     .info { color: #29b6f6; }
+    .error { color: #ff5252; }
   </style>
 </head>
 <body>
@@ -165,13 +166,6 @@
         json[key] = value;
       });
 
-      if (json.mode === "register") {
-        document.getElementById("formWrapper").innerHTML = `
-          <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" />
-          <h2>📧 You submitted a registration form.<br>Please check your email inbox.</h2>`;
-        return;
-      }
-
       try {
         const response = await fetch(form.action, {
           method: "POST",
@@ -179,11 +173,21 @@
           body: JSON.stringify(json),
         });
 
-        if (response.ok && json.mode === "login") {
-          form.style.display = "none";
-          confirmation.textContent = "👋 Welcome back to GTC!";
-          confirmation.className = "confirmation success";
-          confirmation.style.display = "block";
+        const data = await response.json();
+
+        form.style.display = "none";
+        confirmation.style.display = "block";
+
+        if (json.mode === "register") {
+          confirmation.textContent = data.exists
+            ? "❌ A user with this email is already registered."
+            : "📧 You submitted a registration form. Please check your email inbox.";
+          confirmation.className = `confirmation ${data.exists ? 'error' : 'info'}`;
+        } else if (json.mode === "login") {
+          confirmation.textContent = data.authenticated
+            ? "👋 Welcome back to GTC!"
+            : "❌ Login failed: email and password do not match any existing user.";
+          confirmation.className = `confirmation ${data.authenticated ? 'success' : 'error'}`;
         }
       } catch (err) {
         alert("Request failed. Please check your connection and try again.");
@@ -194,7 +198,7 @@
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("verified") === "true") {
-      form.style.display = "none";
+      document.getElementById("accessForm").style.display = "none";
       confirmation.style.display = "block";
       confirmation.textContent = "🎉 Your email has been successfully verified! You can now log in and start using GTC.";
       confirmation.className = "confirmation success";
