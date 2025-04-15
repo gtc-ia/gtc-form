@@ -64,7 +64,6 @@
     }
     .confirmation {
       margin-top: 1.5rem;
-      color: #8bc34a;
       font-weight: bold;
       display: none;
     }
@@ -76,9 +75,10 @@
     .password-strength {
       font-size: 0.85rem;
       margin-top: 0.2rem;
-      color: #64dd17;
       text-align: left;
     }
+    .success { color: #8bc34a; }
+    .info { color: #29b6f6; }
   </style>
 </head>
 <body>
@@ -126,6 +126,7 @@
     const modeSelect = document.getElementById("mode");
     const nameField = document.getElementById("nameField");
     const confirmation = document.getElementById("confirmation");
+    const formWrapper = document.getElementById("formWrapper");
     const passwordInput = document.getElementById("password");
     const strengthDisplay = document.getElementById("passwordStrength");
 
@@ -142,10 +143,10 @@
         strengthDisplay.textContent = "";
       } else if (regex.test(value)) {
         strengthDisplay.textContent = "Password strength: Good";
-        strengthDisplay.style.color = "#64dd17";
+        strengthDisplay.className = "password-strength success";
       } else {
-        strengthDisplay.textContent = "Password must be 8+ chars, incl. letters, numbers & special symbols.";
-        strengthDisplay.style.color = "#ff9800";
+        strengthDisplay.textContent = "Password must be at least 8 characters and include letters, numbers, and special characters.";
+        strengthDisplay.className = "password-strength info";
       }
     });
 
@@ -155,7 +156,7 @@
       const password = passwordInput.value;
       const regex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
       if (!regex.test(password)) {
-        alert("Password must be at least 8 characters long and include letters, numbers, and special characters.");
+        alert("Password must be at least 8 characters and include letters, numbers, and special characters.");
         return;
       }
 
@@ -175,11 +176,11 @@
         if (response.ok) {
           form.style.display = "none";
           if (json.mode === "register") {
-            confirmation.textContent =
-              "🎉 Thank you for registering with GTC! Please check your email and confirm your address to activate your account.";
+            confirmation.textContent = "📧 A confirmation email has been sent. Please check your inbox.";
+            confirmation.className = "confirmation success";
           } else {
-            confirmation.textContent =
-              "✅ Welcome back to GTC! You have successfully logged in.";
+            confirmation.textContent = "👋 Welcome back to GTC!";
+            confirmation.className = "confirmation info";
           }
           confirmation.style.display = "block";
         } else {
@@ -190,14 +191,15 @@
       }
     });
 
+    // Set initial state
     modeSelect.dispatchEvent(new Event("change"));
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("verified") === "true") {
       form.style.display = "none";
       confirmation.style.display = "block";
-      confirmation.innerHTML =
-        "🎉 Your email has been successfully confirmed!<br />You may now log in and start using GTC.";
+      confirmation.textContent = "🎉 Your email has been successfully verified. You may now log in to GTC.";
+      confirmation.className = "confirmation success";
     }
   </script>
 </body>
