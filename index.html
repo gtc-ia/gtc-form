@@ -170,11 +170,9 @@
       form.style.display = "none";
       confirmation.style.display = "block";
       confirmation.className = "confirmation info";
-      if (json.mode === "register") {
-        confirmation.textContent = "📧 You submitted a registration form. Please check your email inbox.";
-      } else if (json.mode === "login") {
-        confirmation.textContent = "⏳ Logging in. Please wait...";
-      }
+      confirmation.textContent = json.mode === "register"
+        ? "📧 You submitted a registration form. Please check your email inbox."
+        : "⏳ Logging in. Please wait...";
 
       try {
         const webhookURL = "https://kfilipenko.app.n8n.cloud/webhook/user-register";
