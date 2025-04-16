@@ -67,11 +67,6 @@
       font-weight: bold;
       display: none;
     }
-    .verify-message {
-      margin-top: 0.5rem;
-      font-size: 0.95rem;
-      color: #aaa;
-    }
     .password-strength {
       font-size: 0.85rem;
       margin-top: 0.2rem;
@@ -167,35 +162,33 @@
       });
       json["action"] = json["mode"];
 
-      form.style.display = "none";
+      console.log("Form JSON to send:", json);
+
+      confirmation.textContent = "✅ You submitted a registration form. Please check your email inbox.";
+      confirmation.className = "confirmation success";
       confirmation.style.display = "block";
-      confirmation.className = "confirmation info";
-      confirmation.textContent = json.mode === "register"
-        ? "📧 You submitted a registration form. Please check your email inbox."
-        : "⏳ Logging in. Please wait...";
 
       try {
         const webhookURL = "https://kfilipenko.app.n8n.cloud/webhook/user-register";
-        await fetch(webhookURL, {
+        const res = await fetch(webhookURL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(json),
         });
+
+        console.log("Response status:", res.status);
+        if (!res.ok) {
+          throw new Error("Server error");
+        }
       } catch (err) {
         console.error("Form submission error:", err);
-        alert("Request failed. Please check your connection and try again.");
+        confirmation.textContent = "❌ Something went wrong. Please try again later.";
+        confirmation.className = "confirmation error";
+        confirmation.style.display = "block";
       }
     });
 
     modeSelect.dispatchEvent(new Event("change"));
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("verified") === "true") {
-      document.getElementById("accessForm").style.display = "none";
-      confirmation.style.display = "block";
-      confirmation.textContent = "🎉 Your email has been successfully verified! You can now log in and start using GTC.";
-      confirmation.className = "confirmation success";
-    }
   </script>
 </body>
 </html>
