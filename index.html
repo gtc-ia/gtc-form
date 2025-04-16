@@ -38,7 +38,7 @@
       margin-top: 1rem;
       text-align: left;
     }
-    input, select {
+    input, select, textarea {
       width: 100%;
       padding: 10px;
       border-radius: 6px;
@@ -64,6 +64,7 @@
     }
     .confirmation {
       margin-top: 1.5rem;
+      color: #8bc34a;
       font-weight: bold;
       display: none;
     }
@@ -75,18 +76,16 @@
     .password-strength {
       font-size: 0.85rem;
       margin-top: 0.2rem;
+      color: #64dd17;
       text-align: left;
     }
-    .success { color: #8bc34a; }
-    .info { color: #29b6f6; }
-    .error { color: #ff5252; }
   </style>
 </head>
 <body>
   <div class="form-container" id="formWrapper">
     <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" />
     <h2>Welcome to GTC</h2>
-    <form id="accessForm" method="POST">
+    <form id="accessForm" method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/user-register">
       <label for="mode">Select action:</label>
       <select name="mode" id="mode" required>
         <option value="login" selected>Login</option>
@@ -143,10 +142,10 @@
         strengthDisplay.textContent = "";
       } else if (regex.test(value)) {
         strengthDisplay.textContent = "Password strength: Good";
-        strengthDisplay.className = "password-strength success";
+        strengthDisplay.style.color = "#64dd17";
       } else {
-        strengthDisplay.textContent = "Password must be at least 8 characters and include letters, numbers, and special characters.";
-        strengthDisplay.className = "password-strength info";
+        strengthDisplay.textContent = "Password must be 8+ chars, incl. letters, numbers & special symbols.";
+        strengthDisplay.style.color = "#ff9800";
       }
     });
 
@@ -156,7 +155,7 @@
       const password = passwordInput.value;
       const regex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
       if (!regex.test(password)) {
-        alert("Password must be at least 8 characters and include letters, numbers, and special characters.");
+        alert("Password must be at least 8 characters long and include letters, numbers, and special characters.");
         return;
       }
 
@@ -165,26 +164,28 @@
       formData.forEach((value, key) => {
         json[key] = value;
       });
-      json["action"] = json["mode"];
-
-      form.style.display = "none";
-      confirmation.style.display = "block";
-      confirmation.className = "confirmation info";
-      if (json.mode === "register") {
-        confirmation.textContent = "📧 You submitted a registration form. Please check your email inbox.";
-      } else if (json.mode === "login") {
-        confirmation.textContent = "⏳ Processing login. Please wait...";
-      }
 
       try {
-        const webhookURL = "https://kfilipenko.app.n8n.cloud/webhook/user-register";
-        await fetch(webhookURL, {
+        const response = await fetch(form.action, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(json),
         });
+
+        if (response.ok) {
+          form.style.display = "none";
+          if (json.mode === "register") {
+            confirmation.textContent =
+              "🎉 Thank you for registering with GTC! Please check your email and confirm your address to activate your account.";
+          } else {
+            confirmation.textContent =
+              "✅ Welcome back to GTC! You have successfully logged in.";
+          }
+          confirmation.style.display = "block";
+        } else {
+          alert("Error: " + (await response.text()));
+        }
       } catch (err) {
-        console.error("Form submission error:", err);
         alert("Request failed. Please check your connection and try again.");
       }
     });
@@ -193,10 +194,10 @@
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("verified") === "true") {
-      document.getElementById("accessForm").style.display = "none";
+      form.style.display = "none";
       confirmation.style.display = "block";
-      confirmation.textContent = "🎉 Your email has been successfully verified! You can now log in and start using GTC.";
-      confirmation.className = "confirmation success";
+      confirmation.innerHTML =
+        "🎉 Your email has been successfully confirmed!<br />You may now log in and start using GTC.";
     }
   </script>
 </body>
