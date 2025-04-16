@@ -38,7 +38,7 @@
       margin-top: 1rem;
       text-align: left;
     }
-    input, select, textarea {
+    input, select {
       width: 100%;
       padding: 10px;
       border-radius: 6px;
@@ -79,13 +79,14 @@
     }
     .success { color: #8bc34a; }
     .info { color: #29b6f6; }
+    .error { color: #ff5252; }
   </style>
 </head>
 <body>
   <div class="form-container" id="formWrapper">
     <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" />
     <h2>Welcome to GTC</h2>
-    <form id="accessForm" method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/user-register">
+    <form id="accessForm" method="POST">
       <label for="mode">Select action:</label>
       <select name="mode" id="mode" required>
         <option value="login" selected>Login</option>
@@ -164,28 +165,26 @@
       formData.forEach((value, key) => {
         json[key] = value;
       });
+      json["action"] = json["mode"];
 
+      form.style.display = "none";
+      confirmation.style.display = "block";
+      confirmation.className = "confirmation info";
       if (json.mode === "register") {
-        document.getElementById("formWrapper").innerHTML = `
-          <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" />
-          <h2>📧 You submitted a registration form.<br>Please check your email inbox.</h2>`;
-        return;
+        confirmation.textContent = "📧 You submitted a registration form. Please check your email inbox.";
+      } else if (json.mode === "login") {
+        confirmation.textContent = "⏳ Logging in. Please wait...";
       }
 
       try {
-        const response = await fetch(form.action, {
+        const webhookURL = "https://kfilipenko.app.n8n.cloud/webhook/user-register";
+        await fetch(webhookURL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(json),
         });
-
-        if (response.ok && json.mode === "login") {
-          form.style.display = "none";
-          confirmation.textContent = "👋 Welcome back to GTC!";
-          confirmation.className = "confirmation success";
-          confirmation.style.display = "block";
-        }
       } catch (err) {
+        console.error("Form submission error:", err);
         alert("Request failed. Please check your connection and try again.");
       }
     });
@@ -194,7 +193,7 @@
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("verified") === "true") {
-      form.style.display = "none";
+      document.getElementById("accessForm").style.display = "none";
       confirmation.style.display = "block";
       confirmation.textContent = "🎉 Your email has been successfully verified! You can now log in and start using GTC.";
       confirmation.className = "confirmation success";
