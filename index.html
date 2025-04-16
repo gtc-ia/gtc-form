@@ -65,6 +65,7 @@
     .confirmation {
       margin-top: 1.5rem;
       font-weight: bold;
+      display: none;
     }
     .password-strength {
       font-size: 0.85rem;
@@ -113,7 +114,7 @@
 
       <button type="submit">Continue</button>
     </form>
-    <p class="confirmation" id="confirmation" style="display:none;"></p>
+    <p class="confirmation" id="confirmation"></p>
   </div>
 
   <script>
@@ -161,20 +162,19 @@
       });
       json["action"] = json["mode"];
 
-      // Показ уведомления и скрытие формы до отправки
-      document.getElementById("formWrapper").innerHTML = `
-        <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" style="width:80px; margin-bottom:1rem;" />
-        <h2>Welcome to GTC</h2>
-        <p class="confirmation info" style="display:block; color:#8bc34a;">✅ You submitted a registration form. Please check your email inbox.</p>
-      `;
-
       try {
         const webhookURL = "https://kfilipenko.app.n8n.cloud/webhook/user-register";
-        await fetch(webhookURL, {
+        const response = await fetch(webhookURL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(json),
         });
+
+        // После успешной отправки скрыть форму и показать сообщение
+        form.style.display = "none";
+        confirmation.style.display = "block";
+        confirmation.textContent = "✅ You submitted a registration form. Please check your email inbox.";
+        confirmation.className = "confirmation info";
       } catch (err) {
         console.error("Form submission error:", err);
         alert("Request failed. Please check your connection and try again.");
