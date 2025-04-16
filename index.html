@@ -86,7 +86,7 @@
   <div class="form-container" id="formWrapper">
     <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" />
     <h2>Welcome to GTC</h2>
-    <form id="accessForm" method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/user-register">
+    <form id="accessForm" method="POST">
       <label for="mode">Select action:</label>
       <select name="mode" id="mode" required>
         <option value="login" selected>Login</option>
@@ -165,31 +165,26 @@
       formData.forEach((value, key) => {
         json[key] = value;
       });
+      json["action"] = json["mode"];
+
+      form.style.display = "none";
+      confirmation.style.display = "block";
+      confirmation.className = "confirmation info";
+      if (json.mode === "register") {
+        confirmation.textContent = "📧 You submitted a registration form. Please check your email inbox.";
+      } else if (json.mode === "login") {
+        confirmation.textContent = "⏳ Processing login. Please wait...";
+      }
 
       try {
-        const response = await fetch(form.action, {
+        const webhookURL = "https://kfilipenko.app.n8n.cloud/webhook/user-register";
+        await fetch(webhookURL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(json),
         });
-
-        const data = await response.json();
-
-        form.style.display = "none";
-        confirmation.style.display = "block";
-
-        if (json.mode === "register") {
-          confirmation.textContent = data.exists
-            ? "❌ A user with this email is already registered."
-            : "📧 You submitted a registration form. Please check your email inbox.";
-          confirmation.className = `confirmation ${data.exists ? 'error' : 'info'}`;
-        } else if (json.mode === "login") {
-          confirmation.textContent = data.authenticated
-            ? "👋 Welcome back to GTC!"
-            : "❌ Login failed: email and password do not match any existing user.";
-          confirmation.className = `confirmation ${data.authenticated ? 'success' : 'error'}`;
-        }
       } catch (err) {
+        console.error("Form submission error:", err);
         alert("Request failed. Please check your connection and try again.");
       }
     });
