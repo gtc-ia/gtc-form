@@ -5,119 +5,140 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Welcome to GTC (V3)</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" />
   <style>
     body {
-      font-family: 'Inter', sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #0a0a23;
-      color: white;
+      background-color: #060b2c;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
+      font-family: Arial, sans-serif;
+      color: white;
     }
 
     .container {
-      background: #10102f;
-      border-radius: 20px;
-      box-shadow: 0 0 30px rgba(0, 0, 255, 0.2);
-      padding: 40px;
-      max-width: 400px;
-      width: 100%;
+      background-color: #0d1353;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0px 0px 20px rgba(0, 128, 255, 0.5);
+      width: 320px;
       text-align: center;
     }
 
-    img {
-      width: 64px;
-      height: 64px;
+    h2 {
       margin-bottom: 20px;
     }
 
-    h1 {
-      margin-bottom: 20px;
-    }
-
+    input,
     select,
-    input {
+    button {
       width: 100%;
       padding: 10px;
       margin-bottom: 15px;
-      border-radius: 8px;
       border: none;
-      outline: none;
+      border-radius: 8px;
       font-size: 16px;
+    }
+
+    input {
+      background-color: #f5f5f5;
+      color: #333;
+    }
+
+    select {
+      background-color: #f5f5f5;
+      color: #333;
     }
 
     button {
-      background: #1e40af;
+      background-color: #1e40af;
       color: white;
       font-weight: bold;
-      border: none;
-      border-radius: 8px;
-      padding: 10px 20px;
-      font-size: 16px;
       cursor: pointer;
     }
 
+    button:hover {
+      background-color: #1e3a8a;
+    }
+
     .message {
-      margin-top: 20px;
-      font-size: 14px;
-      color: #f87171;
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .error {
+      background-color: #ff4d4d;
+      color: white;
+    }
+
+    .success {
+      background-color: #4caf50;
+      color: white;
     }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <img src="https://raw.githubusercontent.com/kfilipenko/gtc-form/main/assets/logo.png" alt="Logo" />
-    <h1>Добро пожаловать в GTC (V3)</h1>
+    <img src="https://kfilipenko.github.io/gtc-form/assets/gtc-logo.png" alt="GTC Logo" style="width: 60px; margin-bottom: 10px;">
+    <h2>Добро пожаловать в GTC (V3)</h2>
     <form id="accessForm" method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/f01e3a82-7427-46c7-8593-ccc7e14950ce">
       <select name="mode" id="mode">
         <option value="login">Login</option>
         <option value="register">Register</option>
       </select>
-
-      <input type="email" name="email" placeholder="Email address:" required />
-      <input type="password" name="password" placeholder="Password:" required />
+      <input type="text" name="name" id="nameField" placeholder="Name" required />
+      <input type="email" name="email" placeholder="Email address" required />
+      <input type="password" name="password" placeholder="Password" required />
       <input type="text" name="source" value="GitHub Page" readonly />
       <button type="submit">Continue</button>
     </form>
-    <div class="message" id="message"></div>
+    <div id="responseMsg" class="message" style="display: none;"></div>
   </div>
 
   <script>
-    const form = document.getElementById('accessForm');
-    const message = document.getElementById('message');
+    const form = document.getElementById("accessForm");
+    const msg = document.getElementById("responseMsg");
+    const modeSelect = document.getElementById("mode");
+    const nameField = document.getElementById("nameField");
 
-    form.addEventListener('submit', async (e) => {
+    modeSelect.addEventListener("change", () => {
+      nameField.style.display = modeSelect.value === "register" ? "block" : "none";
+    });
+
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
-
       const formData = new FormData(form);
-      const jsonData = {};
-      formData.forEach((value, key) => (jsonData[key] = value));
+      const data = Object.fromEntries(formData.entries());
 
       try {
-        const response = await fetch(form.action, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(jsonData),
+        const res = await fetch(form.action, {
+          method: form.method,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
         });
 
-        const result = await response.json();
-        if (result.success) {
-          message.textContent = result.message || 'Успешно!';
-          message.style.color = '#4ade80';
+        const response = await res.json();
+        msg.style.display = "block";
+        if (res.ok) {
+          msg.className = "message success";
+          msg.textContent = response.message || "Успешно. Проверьте почту.";
         } else {
-          message.textContent = result.message || 'Ошибка.';
-          message.style.color = '#f87171';
+          msg.className = "message error";
+          msg.textContent = response.message || "Ошибка при подключении к серверу.";
         }
-      } catch (error) {
-        message.textContent = 'Ошибка при подключении к серверу.';
-        message.style.color = '#f87171';
+      } catch (err) {
+        msg.style.display = "block";
+        msg.className = "message error";
+        msg.textContent = "Ошибка при подключении к серверу.";
       }
     });
+
+    // начальное состояние поля "Name"
+    nameField.style.display = modeSelect.value === "register" ? "block" : "none";
   </script>
 </body>
 
