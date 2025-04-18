@@ -1,196 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GTC Unified Access (V3)</title>
-  <link rel="icon" href="https://kfilipenko.github.io/gtc-form/assets/logo.png" type="image/png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to GTC (V3)</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" />
   <style>
     body {
+      font-family: 'Inter', sans-serif;
       margin: 0;
       padding: 0;
-      background: #0a0d1e;
-      font-family: "Segoe UI", sans-serif;
-      color: #fff;
+      background-color: #0a0a23;
+      color: white;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
     }
-    .form-container {
-      max-width: 420px;
-      width: 90%;
-      background: #111933;
-      padding: 2rem;
-      border-radius: 16px;
-      box-shadow: 0 0 24px rgba(0, 102, 255, 0.3);
+
+    .container {
+      background: #10102f;
+      border-radius: 20px;
+      box-shadow: 0 0 30px rgba(0, 0, 255, 0.2);
+      padding: 40px;
+      max-width: 400px;
+      width: 100%;
       text-align: center;
     }
-    .form-container img {
-      width: 80px;
-      margin-bottom: 1rem;
+
+    img {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 20px;
     }
-    .form-container h2 {
-      margin-bottom: 1.5rem;
+
+    h1 {
+      margin-bottom: 20px;
     }
-    label {
-      display: block;
-      margin-top: 1rem;
-      text-align: left;
-    }
-    input, select {
+
+    select,
+    input {
       width: 100%;
       padding: 10px;
-      border-radius: 6px;
+      margin-bottom: 15px;
+      border-radius: 8px;
       border: none;
-      margin-top: 0.3rem;
-      background: #2b2b2b;
-      color: #fff;
+      outline: none;
+      font-size: 16px;
     }
+
     button {
-      margin-top: 1.5rem;
-      width: 100%;
-      padding: 12px;
+      background: #1e40af;
+      color: white;
+      font-weight: bold;
       border: none;
       border-radius: 8px;
-      background-color: #2962ff;
-      color: #fff;
-      font-weight: bold;
+      padding: 10px 20px;
+      font-size: 16px;
       cursor: pointer;
-      transition: 0.3s;
     }
-    button:hover {
-      background-color: #0039cb;
+
+    .message {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #f87171;
     }
-    .confirmation {
-      margin-top: 1.5rem;
-      font-weight: bold;
-      display: none;
-    }
-    .password-strength {
-      font-size: 0.85rem;
-      margin-top: 0.2rem;
-      text-align: left;
-    }
-    .success { color: #8bc34a; }
-    .info { color: #29b6f6; }
-    .error { color: #ff5252; }
   </style>
 </head>
+
 <body>
-  <div class="form-container" id="formWrapper">
-    <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" />
-    <h2>Welcome to GTC (V3)</h2>
+  <div class="container">
+    <img src="https://raw.githubusercontent.com/kfilipenko/gtc-form/main/assets/logo.png" alt="Logo" />
+    <h1>Добро пожаловать в GTC (V3)</h1>
     <form id="accessForm" method="POST" action="https://kfilipenko.app.n8n.cloud/webhook/f01e3a82-7427-46c7-8593-ccc7e14950ce">
-      <label for="mode">Select action:</label>
-      <select name="mode" id="mode" required>
-        <option value="login" selected>Login</option>
+      <select name="mode" id="mode">
+        <option value="login">Login</option>
         <option value="register">Register</option>
       </select>
 
-      <label for="email">Email address:</label>
-      <input type="email" name="email" id="email" required autocomplete="email" />
-
-      <div id="nameField" style="display:none;">
-        <label for="name">Name (for registration):</label>
-        <input type="text" name="name" id="name" autocomplete="name" />
-      </div>
-
-      <label for="password">Password:</label>
-      <input type="password" name="password" id="password" required autocomplete="new-password" />
-      <div class="password-strength" id="passwordStrength"></div>
-
-      <label for="source">Source:</label>
-      <select name="source" id="source" required>
-        <option value="telegram">Telegram</option>
-        <option value="web">Website</option>
-        <option value="github" selected>GitHub Page</option>
-        <option value="wix">Wix</option>
-        <option value="tilda">Tilda</option>
-        <option value="other">Other</option>
-      </select>
-
-      <input type="hidden" name="executionMode" id="executionMode" value="login" />
-
+      <input type="email" name="email" placeholder="Email address:" required />
+      <input type="password" name="password" placeholder="Password:" required />
+      <input type="text" name="source" value="GitHub Page" readonly />
       <button type="submit">Continue</button>
     </form>
-    <p class="confirmation" id="confirmation"></p>
+    <div class="message" id="message"></div>
   </div>
 
   <script>
-    const form = document.getElementById("accessForm");
-    const modeSelect = document.getElementById("mode");
-    const nameField = document.getElementById("nameField");
-    const confirmation = document.getElementById("confirmation");
-    const passwordInput = document.getElementById("password");
-    const strengthDisplay = document.getElementById("passwordStrength");
+    const form = document.getElementById('accessForm');
+    const message = document.getElementById('message');
 
-    modeSelect.addEventListener("change", function () {
-      const isRegister = this.value === "register";
-      nameField.style.display = isRegister ? "block" : "none";
-      document.getElementById("executionMode").value = this.value;
-    });
-
-    passwordInput.addEventListener("input", () => {
-      const value = passwordInput.value;
-      const regex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
-      if (!value) {
-        strengthDisplay.textContent = "";
-      } else if (regex.test(value)) {
-        strengthDisplay.textContent = "Password strength: Good";
-        strengthDisplay.className = "password-strength success";
-      } else {
-        strengthDisplay.textContent = "Password must be at least 8 characters and include letters, numbers, and special characters.";
-        strengthDisplay.className = "password-strength info";
-      }
-    });
-
-    form.addEventListener("submit", async function (e) {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const password = passwordInput.value;
-      const regex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
-      if (!regex.test(password)) {
-        alert("Password must be at least 8 characters and include letters, numbers, and special characters.");
-        return;
-      }
-
       const formData = new FormData(form);
-      const json = {};
-      formData.forEach((value, key) => {
-        json[key] = value;
-      });
-      json["action"] = json["mode"];
+      const jsonData = {};
+      formData.forEach((value, key) => (jsonData[key] = value));
 
       try {
         const response = await fetch(form.action, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(json),
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(jsonData),
         });
 
-        form.style.display = "none";
-        confirmation.style.display = "block";
-
-        const data = await response.json();
-
-        if (json.mode === "register") {
-          confirmation.textContent = data.exists
-            ? "❌ A user with this email is already registered."
-            : "📧 Registration submitted. Please check your email to confirm.";
-          confirmation.className = `confirmation ${data.exists ? 'error' : 'info'}`;
+        const result = await response.json();
+        if (result.success) {
+          message.textContent = result.message || 'Успешно!';
+          message.style.color = '#4ade80';
         } else {
-          confirmation.textContent = data.authenticated
-            ? "👋 Welcome back to GTC!"
-            : "❌ Login failed. Incorrect email or password.";
-          confirmation.className = `confirmation ${data.authenticated ? 'success' : 'error'}`;
+          message.textContent = result.message || 'Ошибка.';
+          message.style.color = '#f87171';
         }
-      } catch (err) {
-        alert("Request failed. Please check your connection and try again.");
+      } catch (error) {
+        message.textContent = 'Ошибка при подключении к серверу.';
+        message.style.color = '#f87171';
       }
     });
-
-    modeSelect.dispatchEvent(new Event("change"));
   </script>
 </body>
+
 </html>
