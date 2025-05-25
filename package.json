@@ -4,6 +4,7 @@
   "description": "Форма для регистрации на ProdAn\r Создана для регистрации пользователей с проверкой повторения @адресов. \r Данные формы передаются во внешнее хранилище GT\r Новая запись передается в WF на n8n",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
