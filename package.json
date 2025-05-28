@@ -17,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/gtc-ia/gtc-form/issues"
   },
-  "homepage": "https://github.com/gtc-ia/gtc-form#readme"
+  "homepage": "https://github.com/gtc-ia/gtc-form#readme",
+  "dependencies": {
+    "dotenv": "^16.5.0"
+  }
 }
