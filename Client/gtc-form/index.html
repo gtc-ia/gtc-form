@@ -75,47 +75,53 @@
     .success { color: #8bc34a; }
     .info { color: #29b6f6; }
     .error { color: #ff5252; }
+    .loading {
+      color: #29b6f6;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
-  <div class="form-container" id="formWrapper">
-    <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" />
-    <h2>Welcome to GTC</h2>
-    <form id="accessForm" method="POST">
-      <label for="mode">Select action:</label>
-      <select name="mode" id="mode" required>
-        <option value="login" selected>Login</option>
-        <option value="register">Register</option>
-      </select>
+  <main>
+    <section class="form-container" id="formWrapper">
+      <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" />
+      <h2>Welcome to GTC</h2>
+      <form id="accessForm" method="POST">
+        <label for="mode">Select action:</label>
+        <select name="mode" id="mode" required>
+          <option value="login" selected>Login</option>
+          <option value="register">Register</option>
+        </select>
 
-      <label for="email">Email address:</label>
-      <input type="email" name="email" id="email" required autocomplete="email" />
+        <label for="email">Email address:</label>
+        <input type="email" name="email" id="email" required autocomplete="email" />
 
-      <div id="nameField" style="display:none;">
-        <label for="name">Name (for registration):</label>
-        <input type="text" name="name" id="name" autocomplete="name" />
-      </div>
+        <div id="nameField" style="display:none;">
+          <label for="name">Name (for registration):</label>
+          <input type="text" name="name" id="name" autocomplete="name" />
+        </div>
 
-      <label for="password">Password:</label>
-      <input type="password" name="password" id="password" required autocomplete="new-password" />
-      <div class="password-strength" id="passwordStrength"></div>
+        <label for="password">Password:</label>
+        <input type="password" name="password" id="password" required autocomplete="new-password" />
+        <div class="password-strength" id="passwordStrength"></div>
 
-      <label for="source">Source:</label>
-      <select name="source" id="source" required>
-        <option value="telegram">Telegram</option>
-        <option value="web">Website</option>
-        <option value="github" selected>GitHub Page</option>
-        <option value="wix">Wix</option>
-        <option value="tilda">Tilda</option>
-        <option value="other">Other</option>
-      </select>
+        <label for="source">Source:</label>
+        <select name="source" id="source" required>
+          <option value="telegram">Telegram</option>
+          <option value="web">Website</option>
+          <option value="github" selected>GitHub Page</option>
+          <option value="wix">Wix</option>
+          <option value="tilda">Tilda</option>
+          <option value="other">Other</option>
+        </select>
 
-      <input type="hidden" name="executionMode" id="executionMode" value="login" />
+        <input type="hidden" name="executionMode" id="executionMode" value="login" />
 
-      <button type="submit">Continue</button>
-    </form>
-    <p class="confirmation" id="confirmation"></p>
-  </div>
+        <button type="submit">Continue</button>
+      </form>
+      <p class="confirmation" id="confirmation"></p>
+    </section>
+  </main>
 
   <script>
     const form = document.getElementById("accessForm");
@@ -125,6 +131,11 @@
     const passwordInput = document.getElementById("password");
     const strengthDisplay = document.getElementById("passwordStrength");
 
+    function validatePassword(password) {
+      const regex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+      return regex.test(password);
+    }
+
     modeSelect.addEventListener("change", function () {
       const isRegister = this.value === "register";
       nameField.style.display = isRegister ? "block" : "none";
@@ -133,10 +144,9 @@
 
     passwordInput.addEventListener("input", () => {
       const value = passwordInput.value;
-      const regex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
       if (!value) {
         strengthDisplay.textContent = "";
-      } else if (regex.test(value)) {
+      } else if (validatePassword(value)) {
         strengthDisplay.textContent = "Password strength: Good";
         strengthDisplay.className = "password-strength success";
       } else {
@@ -149,11 +159,17 @@
       e.preventDefault();
 
       const password = passwordInput.value;
-      const regex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
-      if (!regex.test(password)) {
-        alert("Password must be at least 8 characters and include letters, numbers, and special characters.");
+      if (!validatePassword(password)) {
+        confirmation.style.display = "block";
+        confirmation.textContent = "❌ Password must be at least 8 characters and include letters, numbers, and special characters.";
+        confirmation.className = "confirmation error";
         return;
       }
+
+      const loadingMessage = document.createElement("p");
+      loadingMessage.textContent = "⏳ Processing your request...";
+      loadingMessage.className = "loading";
+      form.appendChild(loadingMessage);
 
       const formData = new FormData(form);
       const json = {};
@@ -170,14 +186,17 @@
           body: JSON.stringify(json),
         });
 
-        // После успешной отправки скрыть форму и показать сообщение
         form.style.display = "none";
         confirmation.style.display = "block";
         confirmation.textContent = "✅ You submitted a registration form. Please check your email inbox.";
-        confirmation.className = "confirmation info";
+        confirmation.className = "confirmation success";
       } catch (err) {
         console.error("Form submission error:", err);
-        alert("Request failed. Please check your connection and try again.");
+        confirmation.style.display = "block";
+        confirmation.textContent = "❌ Request failed. Please check your connection and try again.";
+        confirmation.className = "confirmation error";
+      } finally {
+        loadingMessage.remove();
       }
     });
 
@@ -186,7 +205,7 @@
     const params = new URLSearchParams(window.location.search);
     if (params.get("verified") === "true") {
       document.getElementById("formWrapper").innerHTML = `
-        <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" style="width:80px; margin-bottom:1rem;" />
+        <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" class="logo" />
         <h2>Welcome to GTC</h2>
         <p class="confirmation success" style="display:block;">🎉 Your email has been successfully verified! You can now log in and start using GTC.</p>
       `;
@@ -195,4 +214,3 @@
 </body>
 </html>
 <!-- тест 2 автодеплоя -->
-echo ".env" >> .gitignore
