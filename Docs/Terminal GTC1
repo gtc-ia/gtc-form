@@ -1,0 +1,76 @@
+## 💻 Terminal Access (Windows / Linux) and Code Editors
+
+### 🔦 Local Terminal (Windows / Linux)
+
+**Purpose:** Manage applications and services on the `GTC1` server via SSH.
+
+* **Primary SSH access:**
+
+  ```bash
+  ssh -i ~/.ssh/GTC1_key.pem kfilipenko@agent.gtstor.com
+  ```
+* Supported environments:
+
+  * Windows Terminal / PowerShell / WSL
+  * Linux Shell (bash, zsh)
+* The private key is stored at `C:\ssh\GTC1_key.pem` on Windows and must be copied to `~/.ssh` when using WSL
+* Passwordless login using SSH key authentication
+
+---
+
+### 🧪 Code Editors and Development Interfaces
+
+#### ✅ Visual Studio Code (VS Code)
+
+* **Main local editor**
+* Supports **Remote SSH** connection to `GTC1`
+* Full access to project directories:
+
+  * `~/n8n`
+  * `~/OpenDevin`
+  * and others
+* Easy editing of config files: `docker-compose.yml`, `.env`, `n8n_update.sh`, etc.
+
+#### ✅ VS Code Server (code-server)
+
+* Installed on `GTC1`
+* Accessible via browser (internal/private only)
+* Direct access to system files and logs through browser-based editor
+* Useful for offline/private development
+
+#### ✅ GitHub Codespaces (cloud development)
+
+* Used for developing repositories like `gtc-form`, `gtc-workflows`
+* Fully integrated with GitHub
+* AI-assisted code suggestions and auto-save support
+
+---
+
+### ♻️ Workflow Summary
+
+1. Connect to `GTC1` using terminal (Windows/Linux/WSL)
+2. Open project in VS Code (locally or via server)
+3. Edit code and configs
+4. Manage services (e.g., restart `n8n`, backup PostgreSQL, update scripts)
+5. Version control via Git / GitHub
+
+---
+
+### ⚙️ Optional: VS Code Remote SSH Setup (Windows)
+
+1. Install [Remote - SSH extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh)
+2. Add this to `~/.ssh/config` (WSL or Git Bash):
+
+   ```ssh
+   Host gtc1
+       HostName agent.gtstor.com
+       User kfilipenko
+       IdentityFile ~/.ssh/GTC1_key.pem
+   ```
+3. Run from VS Code Command Palette:
+
+   > `Remote-SSH: Connect to Host...` -> `gtc1`
+
+---
+
+This structure provides a unified terminal and code management environment across local and cloud systems for seamless development and server control.
