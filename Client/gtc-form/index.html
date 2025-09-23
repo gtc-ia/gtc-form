@@ -140,9 +140,19 @@
       const isRegister = this.value === "register";
       nameField.style.display = isRegister ? "block" : "none";
       document.getElementById("executionMode").value = this.value;
+      passwordInput.setAttribute(
+        "autocomplete",
+        isRegister ? "new-password" : "current-password"
+      );
+      passwordInput.dispatchEvent(new Event("input"));
     });
 
     passwordInput.addEventListener("input", () => {
+      if (modeSelect.value !== "register") {
+        strengthDisplay.textContent = "";
+        strengthDisplay.className = "password-strength";
+        return;
+      }
       const value = passwordInput.value;
       if (!value) {
         strengthDisplay.textContent = "";
@@ -158,10 +168,17 @@
     form.addEventListener("submit", async function (e) {
       e.preventDefault();
 
+      const mode = modeSelect.value;
       const password = passwordInput.value;
-      if (!validatePassword(password)) {
+      const isPasswordValid =
+        mode === "register" ? validatePassword(password) : Boolean(password);
+
+      if (!isPasswordValid) {
         confirmation.style.display = "block";
-        confirmation.textContent = "❌ Password must be at least 8 characters and include letters, numbers, and special characters.";
+        confirmation.textContent =
+          mode === "register"
+            ? "❌ Password must be at least 8 characters and include letters, numbers, and special characters."
+            : "❌ Please enter your password to log in.";
         confirmation.className = "confirmation error";
         return;
       }
@@ -188,7 +205,10 @@
 
         form.style.display = "none";
         confirmation.style.display = "block";
-        confirmation.textContent = "✅ You submitted a registration form. Please check your email inbox.";
+        confirmation.textContent =
+          mode === "register"
+            ? "✅ You submitted a registration form. Please check your email inbox."
+            : "✅ Login successful. Welcome back!";
         confirmation.className = "confirmation success";
       } catch (err) {
         console.error("Form submission error:", err);
