@@ -98,7 +98,8 @@ async function registerHandler(req, res) {
   }
 
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-  const name = typeof req.body?.name === 'string' && req.body.name.trim() ? req.body.name.trim() : null;
+  const trimmedName = req.body?.name?.trim();
+  const name = typeof req.body?.name === 'string' && trimmedName ? trimmedName : null;
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
