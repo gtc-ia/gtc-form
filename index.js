@@ -21,14 +21,9 @@ function parseBoolean(value) {
 
 function buildSslConfig() {
   const { DB_SSL, DB_SSL_REJECT_UNAUTHORIZED } = process.env;
-  if (!DB_SSL) {
+  if (!DB_SSL || !parseBoolean(DB_SSL)) {
     return undefined;
   }
-
-  if (!parseBoolean(DB_SSL)) {
-    return undefined;
-  }
-
   const rejectUnauthorized = DB_SSL_REJECT_UNAUTHORIZED === undefined
     ? false
     : parseBoolean(DB_SSL_REJECT_UNAUTHORIZED);
