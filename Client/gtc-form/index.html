@@ -186,7 +186,10 @@
           body: JSON.stringify(json),
         });
 
-        const responseData = await response.json().catch(() => null);
+        const responseData = await response.json().catch(err => {
+          console.error("Failed to parse JSON response:", err);
+          throw new Error("The server returned an invalid response. Please try again later.");
+        });
 
         if (!response.ok) {
           const errorMessage =
