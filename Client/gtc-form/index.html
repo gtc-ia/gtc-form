@@ -179,21 +179,52 @@
       json["action"] = json["mode"];
 
       try {
-        const webhookURL = "https://kfilipenko.app.n8n.cloud/webhook/user-register";
+        const webhookURL = "https://agent.gtstor.com/api/direct-registration";
         const response = await fetch(webhookURL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(json),
         });
 
+        const responseData = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          const errorMessage =
+            (responseData && (responseData.message || responseData.error)) ||
+            `Request failed with status ${response.status}. Please try again.`;
+          throw new Error(errorMessage);
+        }
+
+        if (!responseData || typeof responseData.gtc_user_id === "undefined") {
+          throw new Error("Registration succeeded but the server did not return a user ID.");
+        }
+
+        const gtcUserId = String(responseData.gtc_user_id);
+
         form.style.display = "none";
         confirmation.style.display = "block";
-        confirmation.textContent = "✅ You submitted a registration form. Please check your email inbox.";
         confirmation.className = "confirmation success";
+        confirmation.textContent = "";
+        confirmation.append("✅ Registration complete! Your GTC user ID is ");
+        const idHighlight = document.createElement("strong");
+        idHighlight.textContent = gtcUserId;
+        confirmation.appendChild(idHighlight);
+        confirmation.append(". To complete setup, ");
+        const paymentLink = document.createElement("a");
+        paymentLink.href = `https://pay.gtstor.com/payment.php?user_id=${encodeURIComponent(gtcUserId)}`;
+        paymentLink.textContent = "open the payment page";
+        paymentLink.target = "_blank";
+        paymentLink.rel = "noopener noreferrer";
+        confirmation.appendChild(paymentLink);
+        confirmation.append(".");
       } catch (err) {
         console.error("Form submission error:", err);
+        const fallbackMessage =
+          err && err.message
+            ? err.message
+            : "Request failed. Please check your connection and try again.";
         confirmation.style.display = "block";
-        confirmation.textContent = "❌ Request failed. Please check your connection and try again.";
+        confirmation.textContent = `❌ ${fallbackMessage}`;
         confirmation.className = "confirmation error";
       } finally {
         loadingMessage.remove();
