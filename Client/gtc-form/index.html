@@ -102,7 +102,7 @@
         </div>
 
         <label for="password">Password:</label>
-        <input type="password" name="password" id="password" required autocomplete="new-password" />
+        <input type="password" name="password" id="password" autocomplete="new-password" />
         <div class="password-strength" id="passwordStrength"></div>
 
         <label for="source">Source:</label>
@@ -116,6 +116,8 @@
         </select>
 
         <input type="hidden" name="executionMode" id="executionMode" value="login" />
+        <!-- Populated by Google Identity flows after verifying an ID token. -->
+        <input type="hidden" name="googleSub" id="googleSub" />
 
         <button type="submit">Continue</button>
       </form>
@@ -131,9 +133,118 @@
     const passwordInput = document.getElementById("password");
     const strengthDisplay = document.getElementById("passwordStrength");
 
+    const API_ENDPOINTS = {
+      emailRegistration: "https://app.gtstor.com/api/rpc/register_user_email",
+      googleRegistration: "https://app.gtstor.com/api/rpc/register_user_google",
+      legacyLogin: "https://kfilipenko.app.n8n.cloud/webhook/user-register",
+    };
+
+    // Set to true only if the legacy webhook still requires the deprecated fields.
+    const ENABLE_LEGACY_LOGIN_FIELDS = false;
+
     function validatePassword(password) {
       const regex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
       return regex.test(password);
+    }
+
+    function collectRegistrationTelemetry(formData) {
+      // Keep telemetry keys aligned with the RPC arguments (e.g. p_full_name, p_signup_source).
+      const telemetry = {};
+      const fullName = (formData.get("name") || "").trim();
+      if (fullName) {
+        telemetry.p_full_name = fullName;
+      }
+      const signupSource = (formData.get("source") || "").trim();
+      if (signupSource) {
+        telemetry.p_signup_source = signupSource;
+      }
+      return telemetry;
+    }
+
+    function showConfirmation(message, status) {
+      confirmation.style.display = "block";
+      confirmation.textContent = message;
+      confirmation.className = `confirmation ${status}`;
+    }
+
+    function getVerifiedGoogleSub() {
+      // External Google Identity flows can call `form.dataset.googleSub = "<verified sub>"`
+      // or populate the hidden #googleSub input after verifying the ID token.
+      const datasetValue = (form.dataset && form.dataset.googleSub) || "";
+      if (datasetValue) {
+        return datasetValue;
+      }
+      const googleSubField = document.getElementById("googleSub");
+      return googleSubField && googleSubField.value ? googleSubField.value : "";
+    }
+
+    async function postJson(url, payload, contextLabel) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        const suffix = errorText ? `: ${errorText}` : "";
+        throw new Error(`${contextLabel} failed (${response.status} ${response.statusText})${suffix}`);
+      }
+
+      return response;
+    }
+
+    async function registerUserWithEmail({ email, password, telemetry }) {
+      if (!email || !password) {
+        throw new Error("Missing email or password for email registration.");
+      }
+      // register_user_email expects a JSON body that matches its RPC signature:
+      // { p_email: string, p_password: string, ...additional accepted telemetry fields }.
+      // Do NOT add the deprecated action/mode/source fields to this payload.
+      const payload = {
+        p_email: email,
+        p_password: password,
+        ...telemetry,
+      };
+
+      return postJson(API_ENDPOINTS.emailRegistration, payload, "Email registration");
+    }
+
+    async function registerUserWithGoogle({ email, googleSub, telemetry }) {
+      if (!email || !googleSub) {
+        throw new Error("Missing email or verified Google subject for Google registration.");
+      }
+      // register_user_google expects the verified Google subject and the email address:
+      // { p_google_sub: string, p_email: string, ...additional accepted telemetry fields }.
+      // Ensure the ID token has already been validated before invoking this RPC.
+      const payload = {
+        p_google_sub: googleSub,
+        p_email: email,
+        ...telemetry,
+      };
+
+      return postJson(API_ENDPOINTS.googleRegistration, payload, "Google registration");
+    }
+
+    async function loginUser({ email, password, legacySource }) {
+      if (!email || !password) {
+        throw new Error("Missing email or password for login.");
+      }
+
+      const payload = {
+        email,
+        password,
+      };
+
+      if (ENABLE_LEGACY_LOGIN_FIELDS) {
+        payload.mode = "login";
+        payload.action = "login";
+        if (legacySource) {
+          payload.source = legacySource;
+        }
+      }
+
+      return postJson(API_ENDPOINTS.legacyLogin, payload, "Login");
     }
 
     modeSelect.addEventListener("change", function () {
@@ -148,7 +259,7 @@
     });
 
     passwordInput.addEventListener("input", () => {
-      if (modeSelect.value !== "register") {
+      if (modeSelect.value !== "register" || getVerifiedGoogleSub()) {
         strengthDisplay.textContent = "";
         strengthDisplay.className = "password-strength";
         return;
@@ -169,17 +280,25 @@
       e.preventDefault();
 
       const mode = modeSelect.value;
-      const password = passwordInput.value;
-      const isPasswordValid =
-        mode === "register" ? validatePassword(password) : Boolean(password);
+      const formData = new FormData(form);
+      const email = (formData.get("email") || "").trim();
+      const password = formData.get("password") || "";
+      const rawSource = formData.get("source") || "";
+      const telemetry = collectRegistrationTelemetry(formData);
+      const googleSub = getVerifiedGoogleSub();
+      const isGoogleRegistration = mode === "register" && Boolean(googleSub);
+
+      const isPasswordValid = mode === "register"
+        ? isGoogleRegistration || validatePassword(password)
+        : Boolean(password);
 
       if (!isPasswordValid) {
-        confirmation.style.display = "block";
-        confirmation.textContent =
+        showConfirmation(
           mode === "register"
             ? "❌ Password must be at least 8 characters and include letters, numbers, and special characters."
-            : "❌ Please enter your password to log in.";
-        confirmation.className = "confirmation error";
+            : "❌ Please enter your password to log in.",
+          "error"
+        );
         return;
       }
 
@@ -188,35 +307,52 @@
       loadingMessage.className = "loading";
       form.appendChild(loadingMessage);
 
-      const formData = new FormData(form);
-      const json = {};
-      formData.forEach((value, key) => {
-        json[key] = value;
-      });
-      json["action"] = json["mode"];
-
       try {
-        const webhookURL = "https://kfilipenko.app.n8n.cloud/webhook/user-register";
-        const response = await fetch(webhookURL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(json),
-        });
+        if (mode === "register") {
+          if (isGoogleRegistration) {
+            await registerUserWithGoogle({
+              email,
+              googleSub,
+              telemetry,
+            });
+            showConfirmation(
+              "✅ Google account linked. Please check your email inbox.",
+              "success"
+            );
+          } else {
+            await registerUserWithEmail({
+              email,
+              password,
+              telemetry,
+            });
+            showConfirmation(
+              "✅ You submitted a registration form. Please check your email inbox.",
+              "success"
+            );
+          }
+        } else {
+          await loginUser({ email, password, legacySource: rawSource });
+          showConfirmation("✅ Login successful. Welcome back!", "success");
+        }
 
         form.style.display = "none";
-        confirmation.style.display = "block";
-        confirmation.textContent =
-          mode === "register"
-            ? "✅ You submitted a registration form. Please check your email inbox."
-            : "✅ Login successful. Welcome back!";
-        confirmation.className = "confirmation success";
+        if (isGoogleRegistration) {
+          form.dataset.googleSub = "";
+          const googleSubField = document.getElementById("googleSub");
+          if (googleSubField) {
+            googleSubField.value = "";
+          }
+        }
       } catch (err) {
         console.error("Form submission error:", err);
-        confirmation.style.display = "block";
-        confirmation.textContent = "❌ Request failed. Please check your connection and try again.";
-        confirmation.className = "confirmation error";
+        showConfirmation(
+          "❌ Request failed. Please check your connection and try again.",
+          "error"
+        );
       } finally {
-        loadingMessage.remove();
+        if (loadingMessage.isConnected) {
+          loadingMessage.remove();
+        }
       }
     });
 
