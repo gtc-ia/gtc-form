@@ -167,6 +167,73 @@
       confirmation.className = `confirmation ${status}`;
     }
 
+    function showSuccessDetails({ mode, isGoogleRegistration, gtcUserId }) {
+      confirmation.style.display = "block";
+      confirmation.className = "confirmation success";
+      confirmation.textContent = "";
+
+      const baseMessage =
+        mode === "register"
+          ? isGoogleRegistration
+            ? "✅ Google account linked. Please check your email inbox."
+            : "✅ You submitted a registration form. Please check your email inbox."
+          : "✅ Login successful. Welcome back!";
+
+      confirmation.append(baseMessage);
+
+      if (!gtcUserId) {
+        return;
+      }
+
+      confirmation.append(document.createElement("br"), document.createElement("br"));
+
+      const idLine = document.createElement("span");
+      idLine.textContent = `Your GTC User ID: ${gtcUserId}`;
+      confirmation.append(idLine, document.createElement("br"));
+
+      const paymentLink = document.createElement("a");
+      paymentLink.href = `https://pay.gtstor.com/payment.php?user_id=${encodeURIComponent(
+        gtcUserId
+      )}`;
+      paymentLink.textContent = "Complete your payment";
+      paymentLink.target = "_blank";
+      paymentLink.rel = "noopener noreferrer";
+      confirmation.append(paymentLink);
+    }
+
+    function extractGtcUserId(data) {
+      if (data == null) {
+        return null;
+      }
+
+      if (Array.isArray(data)) {
+        for (const item of data) {
+          const idFromItem = extractGtcUserId(item);
+          if (idFromItem) {
+            return idFromItem;
+          }
+        }
+        return null;
+      }
+
+      if (typeof data === "object") {
+        if (data.gtc_user_id !== undefined && data.gtc_user_id !== null) {
+          return data.gtc_user_id;
+        }
+        if (data.user_id !== undefined && data.user_id !== null) {
+          return data.user_id;
+        }
+        if (data.id !== undefined && data.id !== null) {
+          return data.id;
+        }
+        if (data.data !== undefined) {
+          return extractGtcUserId(data.data);
+        }
+      }
+
+      return null;
+    }
+
     function getVerifiedGoogleSub() {
       // External Google Identity flows can call `form.dataset.googleSub = "<verified sub>"`
       // or populate the hidden #googleSub input after verifying the ID token.
@@ -179,19 +246,60 @@
     }
 
     async function postJson(url, payload, contextLabel) {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "");
-        const suffix = errorText ? `: ${errorText}` : "";
-        throw new Error(`${contextLabel} failed (${response.status} ${response.statusText})${suffix}`);
+      let response;
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (networkError) {
+        return {
+          ok: false,
+          errorMessage: `${contextLabel} failed: ${networkError instanceof Error ? networkError.message : "Network error"}`,
+        };
       }
 
-      return response;
+      if (!response.ok) {
+        let errorDetail = "";
+        try {
+          const rawBody = await response.text();
+          if (rawBody) {
+            try {
+              const parsed = JSON.parse(rawBody);
+              if (typeof parsed === "string") {
+                errorDetail = parsed;
+              } else if (parsed && typeof parsed === "object") {
+                const candidate = parsed.error || parsed.message || parsed.detail;
+                errorDetail = candidate ? String(candidate) : JSON.stringify(parsed);
+              }
+            } catch (parseError) {
+              errorDetail = rawBody;
+            }
+          }
+        } catch (bodyError) {
+          errorDetail = "";
+        }
+
+        if (!errorDetail) {
+          errorDetail = response.statusText || "Unknown error";
+        }
+
+        return {
+          ok: false,
+          errorMessage: `${contextLabel} failed (${response.status}): ${errorDetail}`,
+        };
+      }
+
+      try {
+        const data = await response.json();
+        return { ok: true, data };
+      } catch (jsonError) {
+        return {
+          ok: false,
+          errorMessage: `${contextLabel} returned an invalid JSON response.`,
+        };
+      }
     }
 
     async function registerUserWithEmail({ email, password, telemetry }) {
@@ -308,32 +416,37 @@
       form.appendChild(loadingMessage);
 
       try {
+        let result;
         if (mode === "register") {
           if (isGoogleRegistration) {
-            await registerUserWithGoogle({
+            result = await registerUserWithGoogle({
               email,
               googleSub,
               telemetry,
             });
-            showConfirmation(
-              "✅ Google account linked. Please check your email inbox.",
-              "success"
-            );
           } else {
-            await registerUserWithEmail({
+            result = await registerUserWithEmail({
               email,
               password,
               telemetry,
             });
-            showConfirmation(
-              "✅ You submitted a registration form. Please check your email inbox.",
-              "success"
-            );
           }
         } else {
-          await loginUser({ email, password, legacySource: rawSource });
-          showConfirmation("✅ Login successful. Welcome back!", "success");
+          result = await loginUser({ email, password, legacySource: rawSource });
         }
+
+        if (!result.ok) {
+          showConfirmation(`❌ ${result.errorMessage}`, "error");
+          return;
+        }
+
+        const gtcUserId = extractGtcUserId(result.data);
+
+        showSuccessDetails({
+          mode,
+          isGoogleRegistration,
+          gtcUserId,
+        });
 
         form.style.display = "none";
         if (isGoogleRegistration) {
@@ -345,10 +458,11 @@
         }
       } catch (err) {
         console.error("Form submission error:", err);
-        showConfirmation(
-          "❌ Request failed. Please check your connection and try again.",
-          "error"
-        );
+        const fallbackMessage =
+          err instanceof Error && err.message
+            ? err.message
+            : "Request failed. Please check your connection and try again.";
+        showConfirmation(`❌ ${fallbackMessage}`, "error");
       } finally {
         if (loadingMessage.isConnected) {
           loadingMessage.remove();
