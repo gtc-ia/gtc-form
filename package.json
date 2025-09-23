@@ -19,6 +19,9 @@
   },
   "homepage": "https://github.com/gtc-ia/gtc-form#readme",
   "dependencies": {
-    "dotenv": "^16.5.0"
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "pg": "^8.16.3"
   }
 }
