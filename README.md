@@ -39,3 +39,14 @@ git pull origin main
 ```
 
 The script installs Node dependencies with `npm ci`, stages the contents of `Client/gtc-form` and `assets`, and then uses `rsync` to update the server directory. Deployment is idempotent—rerunning the script safely refreshes the production files. Set the `DEPLOY_TARGET_DIR` environment variable if you need to test against an alternate path before updating production.
+
+## 🧪 Local Preview
+
+Serve the static bundle locally with the provided npm script:
+
+```bash
+npm install
+npm start
+```
+
+This starts a local web server on [http://localhost:4173](http://localhost:4173) that serves the contents of `Client/gtc-form` for quick smoke testing before deployment.
