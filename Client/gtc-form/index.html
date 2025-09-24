@@ -136,6 +136,225 @@
       return regex.test(password);
     }
 
+    function resetConfirmation() {
+      confirmation.style.display = "none";
+      confirmation.className = "confirmation";
+      confirmation.textContent = "";
+    }
+
+    function showError(message) {
+      resetConfirmation();
+      confirmation.textContent = `❌ ${message}`;
+      confirmation.className = "confirmation error";
+      confirmation.style.display = "block";
+    }
+
+    function normaliseErrorItem(item) {
+      if (item === null || item === undefined) {
+        return "";
+      }
+      if (typeof item === "string") {
+        return item.trim();
+      }
+      if (typeof item === "number" || typeof item === "boolean") {
+        return String(item);
+      }
+      if (typeof item === "object") {
+        const candidate =
+          (typeof item.message === "string" && item.message.trim()) ||
+          (typeof item.error === "string" && item.error.trim()) ||
+          (typeof item.detail === "string" && item.detail.trim()) ||
+          (typeof item.description === "string" && item.description.trim()) ||
+          (typeof item.title === "string" && item.title.trim());
+        if (candidate) {
+          return candidate;
+        }
+        try {
+          const serialised = JSON.stringify(item);
+          return serialised === "{}" ? "" : serialised;
+        } catch (err) {
+          return "";
+        }
+      }
+      return "";
+    }
+
+    function gatherErrors(errorsField) {
+      if (!errorsField) {
+        return "";
+      }
+      const queue = Array.isArray(errorsField) ? [...errorsField] : [errorsField];
+      const visited = new Set();
+      const collected = [];
+      while (queue.length) {
+        const entry = queue.shift();
+        if (entry === null || entry === undefined) {
+          continue;
+        }
+        if (typeof entry === "string" || typeof entry === "number" || typeof entry === "boolean") {
+          const formatted = normaliseErrorItem(entry);
+          if (formatted) {
+            collected.push(formatted);
+          }
+          continue;
+        }
+        if (Array.isArray(entry)) {
+          queue.push(...entry);
+          continue;
+        }
+        if (typeof entry === "object") {
+          if (visited.has(entry)) {
+            continue;
+          }
+          visited.add(entry);
+          const directMessage = normaliseErrorItem(entry);
+          if (directMessage && directMessage !== "{}") {
+            collected.push(directMessage);
+          }
+          queue.push(...Object.values(entry));
+        }
+      }
+      const uniqueMessages = Array.from(
+        new Set(
+          collected
+            .map((item) => (item && item.trim()) || "")
+            .filter(Boolean)
+        )
+      );
+      return uniqueMessages.join("; ");
+    }
+
+    function derivePayloadMessage(payload) {
+      if (payload === null || payload === undefined) {
+        return "";
+      }
+      if (typeof payload === "string") {
+        return payload.trim();
+      }
+      if (typeof payload === "number" || typeof payload === "boolean") {
+        return String(payload);
+      }
+      if (typeof payload !== "object") {
+        return "";
+      }
+      const primaryMessage =
+        (typeof payload.message === "string" && payload.message.trim()) ||
+        (typeof payload.error === "string" && payload.error.trim()) ||
+        (typeof payload.detail === "string" && payload.detail.trim()) ||
+        (typeof payload.error_description === "string" && payload.error_description.trim()) ||
+        (typeof payload.title === "string" && payload.title.trim());
+      if (primaryMessage) {
+        return primaryMessage;
+      }
+      const errorsMessage = gatherErrors(payload.errors);
+      if (errorsMessage) {
+        return errorsMessage;
+      }
+      const descriptionMessage =
+        (typeof payload.description === "string" && payload.description.trim()) ||
+        (typeof payload.details === "string" && payload.details.trim());
+      if (descriptionMessage) {
+        return descriptionMessage;
+      }
+      return "";
+    }
+
+    function buildErrorMessage(payload, rawBody, response) {
+      const payloadMessage = derivePayloadMessage(payload);
+      if (payloadMessage) {
+        return payloadMessage;
+      }
+      if (rawBody && rawBody.trim()) {
+        return rawBody.trim();
+      }
+      if (response) {
+        const statusText = response.statusText ? ` ${response.statusText}` : "";
+        return `Request failed with status ${response.status}${statusText}. Please try again.`;
+      }
+      return "Request failed. Please try again.";
+    }
+
+    function extractGtcUserId(payload) {
+      if (!payload || typeof payload !== "object") {
+        return null;
+      }
+      const queue = [payload];
+      const visited = new Set();
+      const candidateKeys = ["gtc_user_id", "gtcUserId", "user_id", "userId"];
+      while (queue.length) {
+        const current = queue.shift();
+        if (!current || typeof current !== "object") {
+          continue;
+        }
+        if (visited.has(current)) {
+          continue;
+        }
+        visited.add(current);
+        for (const key of candidateKeys) {
+          if (Object.prototype.hasOwnProperty.call(current, key)) {
+            const value = current[key];
+            if (value !== null && value !== undefined && String(value).trim() !== "") {
+              return value;
+            }
+          }
+        }
+        if (Array.isArray(current)) {
+          queue.push(...current);
+        } else {
+          queue.push(...Object.values(current));
+        }
+      }
+      return null;
+    }
+
+    function resolvePaymentUrl(payload, gtcUserId) {
+      if (!gtcUserId || String(gtcUserId).trim() === "") {
+        return "";
+      }
+      const candidates = [];
+      if (payload && typeof payload === "object") {
+        candidates.push(payload.payment_url, payload.paymentUrl);
+        if (payload.payment && typeof payload.payment === "object") {
+          candidates.push(payload.payment.url, payload.payment.payment_url);
+        }
+        if (payload.data && typeof payload.data === "object") {
+          candidates.push(payload.data.payment_url, payload.data.paymentUrl);
+        }
+      }
+      for (const candidate of candidates) {
+        if (candidate && typeof candidate === "string") {
+          const trimmed = candidate.trim();
+          if (trimmed) {
+            return trimmed;
+          }
+        }
+      }
+      return `https://pay.gtstor.com/payment.php?user_id=${encodeURIComponent(String(gtcUserId))}`;
+    }
+
+    function showSuccess(gtcUserId, paymentUrl) {
+      form.style.display = "none";
+      resetConfirmation();
+      confirmation.className = "confirmation success";
+      confirmation.style.display = "block";
+      confirmation.append("✅ Registration complete! Your GTC user ID is ");
+      const idHighlight = document.createElement("strong");
+      idHighlight.textContent = gtcUserId;
+      confirmation.appendChild(idHighlight);
+      confirmation.append(". To complete setup, ");
+      if (paymentUrl) {
+        const paymentLink = document.createElement("a");
+        paymentLink.href = paymentUrl;
+        paymentLink.textContent = "open the payment page";
+        paymentLink.target = "_blank";
+        paymentLink.rel = "noopener noreferrer";
+        confirmation.appendChild(paymentLink);
+      } else {
+        confirmation.append("open the payment page");
+      }
+      confirmation.append(".");
+    }
+
     modeSelect.addEventListener("change", function () {
       const isRegister = this.value === "register";
       nameField.style.display = isRegister ? "block" : "none";
@@ -160,9 +379,7 @@
 
       const password = passwordInput.value;
       if (!validatePassword(password)) {
-        confirmation.style.display = "block";
-        confirmation.textContent = "❌ Password must be at least 8 characters and include letters, numbers, and special characters.";
-        confirmation.className = "confirmation error";
+        showError("Password must be at least 8 characters and include letters, numbers, and special characters.");
         return;
       }
 
@@ -179,9 +396,7 @@
       json["action"] = json["mode"];
 
       try {
-        confirmation.style.display = "none";
-        confirmation.textContent = "";
-
+        resetConfirmation();
         const webhookURL = "https://gtc1.gtstor.com/api/direct-registration";
         const response = await fetch(webhookURL, {
           method: "POST",
@@ -199,67 +414,35 @@
           }
         }
 
-        const apiErrorMessage =
-          responseData &&
-          (responseData.message ||
-            responseData.error ||
-            responseData.detail ||
-            responseData.error_description);
-
         if (!response.ok || (responseData && responseData.success === false)) {
-          const statusMessage =
-            apiErrorMessage ||
-            (responseData && typeof responseData === "object"
-              ? JSON.stringify(responseData)
-              : null);
-          const errorMessage =
-            statusMessage ||
-            `Request failed with status ${response.status}. Please try again.`;
+          const errorMessage = buildErrorMessage(responseData, rawBody, response);
           throw new Error(errorMessage);
         }
 
-        const gtcUserId =
-          responseData &&
-          (responseData.gtc_user_id ||
-            (responseData.data && responseData.data.gtc_user_id));
+        const gtcUserId = extractGtcUserId(responseData);
 
         if (!gtcUserId) {
-          throw new Error(
-            apiErrorMessage ||
-              "Registration succeeded but the server did not return a user ID."
-          );
+          const informativeMessage =
+            derivePayloadMessage(responseData) ||
+            (rawBody && rawBody.trim()) ||
+            "Registration succeeded but the server did not return a user ID.";
+          throw new Error(informativeMessage);
         }
         const gtcUserIdString = String(gtcUserId);
+        const paymentUrl = resolvePaymentUrl(responseData, gtcUserIdString);
 
-        form.style.display = "none";
-        confirmation.style.display = "block";
-        confirmation.className = "confirmation success";
-        confirmation.textContent = "";
-        confirmation.append("✅ Registration complete! Your GTC user ID is ");
-        const idHighlight = document.createElement("strong");
-        idHighlight.textContent = gtcUserIdString;
-        confirmation.appendChild(idHighlight);
-        confirmation.append(". To complete setup, ");
-        const paymentLink = document.createElement("a");
-        paymentLink.href = `https://pay.gtstor.com/payment.php?user_id=${encodeURIComponent(
-          gtcUserIdString
-        )}`;
-        paymentLink.textContent = "open the payment page";
-        paymentLink.target = "_blank";
-        paymentLink.rel = "noopener noreferrer";
-        confirmation.appendChild(paymentLink);
-        confirmation.append(".");
+        showSuccess(gtcUserIdString, paymentUrl);
       } catch (err) {
         console.error("Form submission error:", err);
         const fallbackMessage =
-          err && err.message
+          err instanceof Error && err.message
             ? err.message
             : "Request failed. Please check your connection and try again.";
-        confirmation.style.display = "block";
-        confirmation.textContent = `❌ ${fallbackMessage}`;
-        confirmation.className = "confirmation error";
+        showError(fallbackMessage);
       } finally {
-        loadingMessage.remove();
+        if (loadingMessage.isConnected) {
+          loadingMessage.remove();
+        }
       }
     });
 
