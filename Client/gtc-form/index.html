@@ -1,462 +1,370 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GTC Unified Access</title>
-  <link rel="icon" href="https://kfilipenko.github.io/gtc-form/assets/logo.png" type="image/png">
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: #0a0d1e;
-      font-family: "Segoe UI", sans-serif;
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .form-container {
-      max-width: 420px;
-      width: 90%;
-      background: #111933;
-      padding: 2rem;
-      border-radius: 16px;
-      box-shadow: 0 0 24px rgba(0, 102, 255, 0.3);
-      text-align: center;
-    }
-    .form-container img {
-      width: 80px;
-      margin-bottom: 1rem;
-    }
-    .form-container h2 {
-      margin-bottom: 1.5rem;
-    }
-    label {
-      display: block;
-      margin-top: 1rem;
-      text-align: left;
-    }
-    input, select {
-      width: 100%;
-      padding: 10px;
-      border-radius: 6px;
-      border: none;
-      margin-top: 0.3rem;
-      background: #2b2b2b;
-      color: #fff;
-    }
-    button {
-      margin-top: 1.5rem;
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      background-color: #2962ff;
-      color: #fff;
-      font-weight: bold;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-    button:hover {
-      background-color: #0039cb;
-    }
-    .confirmation {
-      margin-top: 1.5rem;
-      font-weight: bold;
-      display: none;
-    }
-    .password-strength {
-      font-size: 0.85rem;
-      margin-top: 0.2rem;
-      text-align: left;
-    }
-    .success { color: #8bc34a; }
-    .info { color: #29b6f6; }
-    .error { color: #ff5252; }
-    .loading {
-      color: #29b6f6;
-      font-weight: bold;
-    }
-  </style>
-</head>
-<body>
-  <main>
-    <section class="form-container" id="formWrapper">
-      <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" />
-      <h2>Welcome to GTC</h2>
-      <form id="accessForm" method="POST">
-        <label for="mode">Select action:</label>
-        <select name="mode" id="mode" required>
-          <option value="login" selected>Login</option>
-          <option value="register">Register</option>
-        </select>
-
-        <label for="email">Email address:</label>
-        <input type="email" name="email" id="email" required autocomplete="email" />
-
-        <div id="nameField" style="display:none;">
-          <label for="name">Name (for registration):</label>
-          <input type="text" name="name" id="name" autocomplete="name" />
-        </div>
-
-        <label for="password">Password:</label>
-        <input type="password" name="password" id="password" required autocomplete="new-password" />
-        <div class="password-strength" id="passwordStrength"></div>
-
-        <label for="source">Source:</label>
-        <select name="source" id="source" required>
-          <option value="telegram">Telegram</option>
-          <option value="web">Website</option>
-          <option value="github" selected>GitHub Page</option>
-          <option value="wix">Wix</option>
-          <option value="tilda">Tilda</option>
-          <option value="other">Other</option>
-        </select>
-
-        <input type="hidden" name="executionMode" id="executionMode" value="login" />
-
-        <button type="submit">Continue</button>
-      </form>
-      <p class="confirmation" id="confirmation"></p>
-    </section>
-  </main>
-
-  <script>
-    const form = document.getElementById("accessForm");
-    const modeSelect = document.getElementById("mode");
-    const nameField = document.getElementById("nameField");
-    const confirmation = document.getElementById("confirmation");
-    const passwordInput = document.getElementById("password");
-    const strengthDisplay = document.getElementById("passwordStrength");
-
-    function validatePassword(password) {
-      const regex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
-      return regex.test(password);
-    }
-
-    function resetConfirmation() {
-      confirmation.style.display = "none";
-      confirmation.className = "confirmation";
-      confirmation.textContent = "";
-    }
-
-    function showError(message) {
-      resetConfirmation();
-      confirmation.textContent = `❌ ${message}`;
-      confirmation.className = "confirmation error";
-      confirmation.style.display = "block";
-    }
-
-    function normaliseErrorItem(item) {
-      if (item === null || item === undefined) {
-        return "";
-      }
-      if (typeof item === "string") {
-        return item.trim();
-      }
-      if (typeof item === "number" || typeof item === "boolean") {
-        return String(item);
-      }
-      if (typeof item === "object") {
-        const candidate =
-          (typeof item.message === "string" && item.message.trim()) ||
-          (typeof item.error === "string" && item.error.trim()) ||
-          (typeof item.detail === "string" && item.detail.trim()) ||
-          (typeof item.description === "string" && item.description.trim()) ||
-          (typeof item.title === "string" && item.title.trim());
-        if (candidate) {
-          return candidate;
-        }
-        try {
-          const serialised = JSON.stringify(item);
-          return serialised === "{}" ? "" : serialised;
-        } catch (err) {
-          return "";
-        }
-      }
-      return "";
-    }
-
-    function gatherErrors(errorsField) {
-      if (!errorsField) {
-        return "";
-      }
-      const queue = Array.isArray(errorsField) ? [...errorsField] : [errorsField];
-      const visited = new Set();
-      const collected = [];
-      while (queue.length) {
-        const entry = queue.shift();
-        if (entry === null || entry === undefined) {
-          continue;
-        }
-        if (typeof entry === "string" || typeof entry === "number" || typeof entry === "boolean") {
-          const formatted = normaliseErrorItem(entry);
-          if (formatted) {
-            collected.push(formatted);
-          }
-          continue;
-        }
-        if (Array.isArray(entry)) {
-          queue.push(...entry);
-          continue;
-        }
-        if (typeof entry === "object") {
-          if (visited.has(entry)) {
-            continue;
-          }
-          visited.add(entry);
-          const directMessage = normaliseErrorItem(entry);
-          if (directMessage && directMessage !== "{}") {
-            collected.push(directMessage);
-          }
-          queue.push(...Object.values(entry));
-        }
-      }
-      const uniqueMessages = Array.from(
-        new Set(
-          collected
-            .map((item) => (item && item.trim()) || "")
-            .filter(Boolean)
-        )
-      );
-      return uniqueMessages.join("; ");
-    }
-
-    function derivePayloadMessage(payload) {
-      if (payload === null || payload === undefined) {
-        return "";
-      }
-      if (typeof payload === "string") {
-        return payload.trim();
-      }
-      if (typeof payload === "number" || typeof payload === "boolean") {
-        return String(payload);
-      }
-      if (typeof payload !== "object") {
-        return "";
-      }
-      const primaryMessage =
-        (typeof payload.message === "string" && payload.message.trim()) ||
-        (typeof payload.error === "string" && payload.error.trim()) ||
-        (typeof payload.detail === "string" && payload.detail.trim()) ||
-        (typeof payload.error_description === "string" && payload.error_description.trim()) ||
-        (typeof payload.title === "string" && payload.title.trim());
-      if (primaryMessage) {
-        return primaryMessage;
-      }
-      const errorsMessage = gatherErrors(payload.errors);
-      if (errorsMessage) {
-        return errorsMessage;
-      }
-      const descriptionMessage =
-        (typeof payload.description === "string" && payload.description.trim()) ||
-        (typeof payload.details === "string" && payload.details.trim());
-      if (descriptionMessage) {
-        return descriptionMessage;
-      }
-      return "";
-    }
-
-    function buildErrorMessage(payload, rawBody, response) {
-      const payloadMessage = derivePayloadMessage(payload);
-      if (payloadMessage) {
-        return payloadMessage;
-      }
-      if (rawBody && rawBody.trim()) {
-        return rawBody.trim();
-      }
-      if (response) {
-        const statusText = response.statusText ? ` ${response.statusText}` : "";
-        return `Request failed with status ${response.status}${statusText}. Please try again.`;
-      }
-      return "Request failed. Please try again.";
-    }
-
-    function extractGtcUserId(payload) {
-      if (!payload || typeof payload !== "object") {
-        return null;
-      }
-      const queue = [payload];
-      const visited = new Set();
-      const candidateKeys = ["gtc_user_id", "gtcUserId", "user_id", "userId"];
-      while (queue.length) {
-        const current = queue.shift();
-        if (!current || typeof current !== "object") {
-          continue;
-        }
-        if (visited.has(current)) {
-          continue;
-        }
-        visited.add(current);
-        for (const key of candidateKeys) {
-          if (Object.prototype.hasOwnProperty.call(current, key)) {
-            const value = current[key];
-            if (value !== null && value !== undefined && String(value).trim() !== "") {
-              return value;
-            }
-          }
-        }
-        if (Array.isArray(current)) {
-          queue.push(...current);
-        } else {
-          queue.push(...Object.values(current));
-        }
-      }
-      return null;
-    }
-
-    function resolvePaymentUrl(payload, gtcUserId) {
-      if (!gtcUserId || String(gtcUserId).trim() === "") {
-        return "";
-      }
-      const candidates = [];
-      if (payload && typeof payload === "object") {
-        candidates.push(payload.payment_url, payload.paymentUrl);
-        if (payload.payment && typeof payload.payment === "object") {
-          candidates.push(payload.payment.url, payload.payment.payment_url);
-        }
-        if (payload.data && typeof payload.data === "object") {
-          candidates.push(payload.data.payment_url, payload.data.paymentUrl);
-        }
-      }
-      for (const candidate of candidates) {
-        if (candidate && typeof candidate === "string") {
-          const trimmed = candidate.trim();
-          if (trimmed) {
-            return trimmed;
-          }
-        }
-      }
-      return `https://pay.gtstor.com/payment.php?user_id=${encodeURIComponent(String(gtcUserId))}`;
-    }
-
-    function showSuccess(gtcUserId, paymentUrl) {
-      form.style.display = "none";
-      resetConfirmation();
-      confirmation.className = "confirmation success";
-      confirmation.style.display = "block";
-      confirmation.append("✅ Registration complete! Your GTC user ID is ");
-      const idHighlight = document.createElement("strong");
-      idHighlight.textContent = gtcUserId;
-      confirmation.appendChild(idHighlight);
-      confirmation.append(". To complete setup, ");
-      if (paymentUrl) {
-        const paymentLink = document.createElement("a");
-        paymentLink.href = paymentUrl;
-        paymentLink.textContent = "open the payment page";
-        paymentLink.target = "_blank";
-        paymentLink.rel = "noopener noreferrer";
-        confirmation.appendChild(paymentLink);
-      } else {
-        confirmation.append("open the payment page");
-      }
-      confirmation.append(".");
-    }
-
-    modeSelect.addEventListener("change", function () {
-      const isRegister = this.value === "register";
-      nameField.style.display = isRegister ? "block" : "none";
-      document.getElementById("executionMode").value = this.value;
-    });
-
-    passwordInput.addEventListener("input", () => {
-      const value = passwordInput.value;
-      if (!value) {
-        strengthDisplay.textContent = "";
-      } else if (validatePassword(value)) {
-        strengthDisplay.textContent = "Password strength: Good";
-        strengthDisplay.className = "password-strength success";
-      } else {
-        strengthDisplay.textContent = "Password must be at least 8 characters and include letters, numbers, and special characters.";
-        strengthDisplay.className = "password-strength info";
-      }
-    });
-
-    form.addEventListener("submit", async function (e) {
-      e.preventDefault();
-
-      const password = passwordInput.value;
-      if (!validatePassword(password)) {
-        showError("Password must be at least 8 characters and include letters, numbers, and special characters.");
-        return;
-      }
-
-      const loadingMessage = document.createElement("p");
-      loadingMessage.textContent = "⏳ Processing your request...";
-      loadingMessage.className = "loading";
-      form.appendChild(loadingMessage);
-
-      const formData = new FormData(form);
-      const json = {};
-      formData.forEach((value, key) => {
-        json[key] = value;
-      });
-      json["action"] = json["mode"];
-
-      try {
-        resetConfirmation();
-        const webhookURL = "https://gtc1.gtstor.com/api/direct-registration";
-        const response = await fetch(webhookURL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(json),
-        });
-
-        const rawBody = await response.text();
-        let responseData = null;
-        if (rawBody) {
-          try {
-            responseData = JSON.parse(rawBody);
-          } catch (parseError) {
-            console.error("Failed to parse API response as JSON", parseError);
-          }
-        }
-
-        if (!response.ok || (responseData && responseData.success === false)) {
-          const errorMessage = buildErrorMessage(responseData, rawBody, response);
-          throw new Error(errorMessage);
-        }
-
-        const gtcUserId = extractGtcUserId(responseData);
-
-        if (!gtcUserId) {
-          const informativeMessage =
-            derivePayloadMessage(responseData) ||
-            (rawBody && rawBody.trim()) ||
-            "Registration succeeded but the server did not return a user ID.";
-          throw new Error(informativeMessage);
-        }
-        const gtcUserIdString = String(gtcUserId);
-        const paymentUrl = resolvePaymentUrl(responseData, gtcUserIdString);
-
-        showSuccess(gtcUserIdString, paymentUrl);
-      } catch (err) {
-        console.error("Form submission error:", err);
-        const fallbackMessage =
-          err instanceof Error && err.message
-            ? err.message
-            : "Request failed. Please check your connection and try again.";
-        showError(fallbackMessage);
-      } finally {
-        if (loadingMessage.isConnected) {
-          loadingMessage.remove();
-        }
-      }
-    });
-
-    modeSelect.dispatchEvent(new Event("change"));
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("verified") === "true") {
-      document.getElementById("formWrapper").innerHTML = `
-        <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" class="logo" />
-        <h2>Welcome to GTC</h2>
-        <p class="confirmation success" style="display:block;">🎉 Your email has been successfully verified! You can now log in and start using GTC.</p>
-      `;
-    }
-  </script>
-</body>
-</html>
-<!-- тест 2 автодеплоя -->
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/Client/gtc-form/index.html b/Client/gtc-form/index.html
+index afcba3b43514bd268cc8b5fb074e72229086ec9d..d5ab46f4fb68ccb1e28d4ee06791c4a9f85c4fea 100644
+--- a/Client/gtc-form/index.html
++++ b/Client/gtc-form/index.html
+@@ -114,103 +114,349 @@
+           <option value="tilda">Tilda</option>
+           <option value="other">Other</option>
+         </select>
+ 
+         <input type="hidden" name="executionMode" id="executionMode" value="login" />
+ 
+         <button type="submit">Continue</button>
+       </form>
+       <p class="confirmation" id="confirmation"></p>
+     </section>
+   </main>
+ 
+   <script>
+     const form = document.getElementById("accessForm");
+     const modeSelect = document.getElementById("mode");
+     const nameField = document.getElementById("nameField");
+     const confirmation = document.getElementById("confirmation");
+     const passwordInput = document.getElementById("password");
+     const strengthDisplay = document.getElementById("passwordStrength");
+ 
+     function validatePassword(password) {
+       const regex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+       return regex.test(password);
+     }
+ 
++    function resetConfirmation() {
++      confirmation.style.display = "none";
++      confirmation.className = "confirmation";
++      confirmation.textContent = "";
++    }
++
++    function showError(message) {
++      resetConfirmation();
++      confirmation.textContent = `❌ ${message}`;
++      confirmation.className = "confirmation error";
++      confirmation.style.display = "block";
++    }
++
++    function normaliseErrorItem(item) {
++      if (item === null || item === undefined) {
++        return "";
++      }
++      if (typeof item === "string") {
++        return item.trim();
++      }
++      if (typeof item === "number" || typeof item === "boolean") {
++        return String(item);
++      }
++      if (typeof item === "object") {
++        const candidate =
++          (typeof item.message === "string" && item.message.trim()) ||
++          (typeof item.error === "string" && item.error.trim()) ||
++          (typeof item.detail === "string" && item.detail.trim()) ||
++          (typeof item.description === "string" && item.description.trim()) ||
++          (typeof item.title === "string" && item.title.trim());
++        if (candidate) {
++          return candidate;
++        }
++        try {
++          const serialised = JSON.stringify(item);
++          return serialised === "{}" ? "" : serialised;
++        } catch (err) {
++          return "";
++        }
++      }
++      return "";
++    }
++
++    function gatherErrors(errorsField) {
++      if (!errorsField) {
++        return "";
++      }
++      const queue = Array.isArray(errorsField) ? [...errorsField] : [errorsField];
++      const visited = new Set();
++      const collected = [];
++      while (queue.length) {
++        const entry = queue.shift();
++        if (entry === null || entry === undefined) {
++          continue;
++        }
++        if (typeof entry === "string" || typeof entry === "number" || typeof entry === "boolean") {
++          const formatted = normaliseErrorItem(entry);
++          if (formatted) {
++            collected.push(formatted);
++          }
++          continue;
++        }
++        if (Array.isArray(entry)) {
++          queue.push(...entry);
++          continue;
++        }
++        if (typeof entry === "object") {
++          if (visited.has(entry)) {
++            continue;
++          }
++          visited.add(entry);
++          const directMessage = normaliseErrorItem(entry);
++          if (directMessage && directMessage !== "{}") {
++            collected.push(directMessage);
++          }
++          queue.push(...Object.values(entry));
++        }
++      }
++      const uniqueMessages = Array.from(
++        new Set(
++          collected
++            .map((item) => (item && item.trim()) || "")
++            .filter(Boolean)
++        )
++      );
++      return uniqueMessages.join("; ");
++    }
++
++    function derivePayloadMessage(payload) {
++      if (payload === null || payload === undefined) {
++        return "";
++      }
++      if (typeof payload === "string") {
++        return payload.trim();
++      }
++      if (typeof payload === "number" || typeof payload === "boolean") {
++        return String(payload);
++      }
++      if (typeof payload !== "object") {
++        return "";
++      }
++      const primaryMessage =
++        (typeof payload.message === "string" && payload.message.trim()) ||
++        (typeof payload.error === "string" && payload.error.trim()) ||
++        (typeof payload.detail === "string" && payload.detail.trim()) ||
++        (typeof payload.error_description === "string" && payload.error_description.trim()) ||
++        (typeof payload.title === "string" && payload.title.trim());
++      if (primaryMessage) {
++        return primaryMessage;
++      }
++      const errorsMessage = gatherErrors(payload.errors);
++      if (errorsMessage) {
++        return errorsMessage;
++      }
++      const descriptionMessage =
++        (typeof payload.description === "string" && payload.description.trim()) ||
++        (typeof payload.details === "string" && payload.details.trim());
++      if (descriptionMessage) {
++        return descriptionMessage;
++      }
++      return "";
++    }
++
++    function buildErrorMessage(payload, rawBody, response) {
++      const payloadMessage = derivePayloadMessage(payload);
++      if (payloadMessage) {
++        return payloadMessage;
++      }
++      if (rawBody && rawBody.trim()) {
++        return rawBody.trim();
++      }
++      if (response) {
++        const statusText = response.statusText ? ` ${response.statusText}` : "";
++        return `Request failed with status ${response.status}${statusText}. Please try again.`;
++      }
++      return "Request failed. Please try again.";
++    }
++
++    function extractGtcUserId(payload) {
++      if (!payload || typeof payload !== "object") {
++        return null;
++      }
++      const queue = [payload];
++      const visited = new Set();
++      const candidateKeys = ["gtc_user_id", "gtcUserId", "user_id", "userId"];
++      while (queue.length) {
++        const current = queue.shift();
++        if (!current || typeof current !== "object") {
++          continue;
++        }
++        if (visited.has(current)) {
++          continue;
++        }
++        visited.add(current);
++        for (const key of candidateKeys) {
++          if (Object.prototype.hasOwnProperty.call(current, key)) {
++            const value = current[key];
++            if (value !== null && value !== undefined && String(value).trim() !== "") {
++              return value;
++            }
++          }
++        }
++        if (Array.isArray(current)) {
++          queue.push(...current);
++        } else {
++          queue.push(...Object.values(current));
++        }
++      }
++      return null;
++    }
++
++    function resolvePaymentUrl(payload, gtcUserId) {
++      if (!gtcUserId || String(gtcUserId).trim() === "") {
++        return "";
++      }
++      const candidates = [];
++      if (payload && typeof payload === "object") {
++        candidates.push(payload.payment_url, payload.paymentUrl);
++        if (payload.payment && typeof payload.payment === "object") {
++          candidates.push(payload.payment.url, payload.payment.payment_url);
++        }
++        if (payload.data && typeof payload.data === "object") {
++          candidates.push(payload.data.payment_url, payload.data.paymentUrl);
++        }
++      }
++      for (const candidate of candidates) {
++        if (candidate && typeof candidate === "string") {
++          const trimmed = candidate.trim();
++          if (trimmed) {
++            return trimmed;
++          }
++        }
++      }
++      return `https://pay.gtstor.com/payment.php?user_id=${encodeURIComponent(String(gtcUserId))}`;
++    }
++
++    function showSuccess(gtcUserId, paymentUrl) {
++      form.style.display = "none";
++      resetConfirmation();
++      confirmation.className = "confirmation success";
++      confirmation.style.display = "block";
++      confirmation.append("✅ Registration complete! Your GTC user ID is ");
++      const idHighlight = document.createElement("strong");
++      idHighlight.textContent = gtcUserId;
++      confirmation.appendChild(idHighlight);
++      confirmation.append(". To complete setup, ");
++      if (paymentUrl) {
++        const paymentLink = document.createElement("a");
++        paymentLink.href = paymentUrl;
++        paymentLink.textContent = "open the payment page";
++        paymentLink.target = "_blank";
++        paymentLink.rel = "noopener noreferrer";
++        confirmation.appendChild(paymentLink);
++      } else {
++        confirmation.append("open the payment page");
++      }
++      confirmation.append(".");
++    }
++
+     modeSelect.addEventListener("change", function () {
+       const isRegister = this.value === "register";
+       nameField.style.display = isRegister ? "block" : "none";
+       document.getElementById("executionMode").value = this.value;
+     });
+ 
+     passwordInput.addEventListener("input", () => {
+       const value = passwordInput.value;
+       if (!value) {
+         strengthDisplay.textContent = "";
+       } else if (validatePassword(value)) {
+         strengthDisplay.textContent = "Password strength: Good";
+         strengthDisplay.className = "password-strength success";
+       } else {
+         strengthDisplay.textContent = "Password must be at least 8 characters and include letters, numbers, and special characters.";
+         strengthDisplay.className = "password-strength info";
+       }
+     });
+ 
+     form.addEventListener("submit", async function (e) {
+       e.preventDefault();
+ 
+       const password = passwordInput.value;
+       if (!validatePassword(password)) {
+-        confirmation.style.display = "block";
+-        confirmation.textContent = "❌ Password must be at least 8 characters and include letters, numbers, and special characters.";
+-        confirmation.className = "confirmation error";
++        showError("Password must be at least 8 characters and include letters, numbers, and special characters.");
+         return;
+       }
+ 
+       const loadingMessage = document.createElement("p");
+       loadingMessage.textContent = "⏳ Processing your request...";
+       loadingMessage.className = "loading";
+       form.appendChild(loadingMessage);
+ 
+       const formData = new FormData(form);
+       const json = {};
+       formData.forEach((value, key) => {
+         json[key] = value;
+       });
+       json["action"] = json["mode"];
+ 
+       try {
+-        const webhookURL = "https://kfilipenko.app.n8n.cloud/webhook/user-register";
++        resetConfirmation();
++        const webhookURL = "https://gtc1.gtstor.com/api/direct-registration";
+         const response = await fetch(webhookURL, {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify(json),
+         });
+ 
+-        form.style.display = "none";
+-        confirmation.style.display = "block";
+-        confirmation.textContent = "✅ You submitted a registration form. Please check your email inbox.";
+-        confirmation.className = "confirmation success";
++        const rawBody = await response.text();
++        let responseData = null;
++        if (rawBody) {
++          try {
++            responseData = JSON.parse(rawBody);
++          } catch (parseError) {
++            console.error("Failed to parse API response as JSON", parseError);
++          }
++        }
++
++        if (!response.ok || (responseData && responseData.success === false)) {
++          const errorMessage = buildErrorMessage(responseData, rawBody, response);
++          throw new Error(errorMessage);
++        }
++
++        const gtcUserId = extractGtcUserId(responseData);
++
++        if (!gtcUserId) {
++          const informativeMessage =
++            derivePayloadMessage(responseData) ||
++            (rawBody && rawBody.trim()) ||
++            "Registration succeeded but the server did not return a user ID.";
++          throw new Error(informativeMessage);
++        }
++        const gtcUserIdString = String(gtcUserId);
++        const paymentUrl = resolvePaymentUrl(responseData, gtcUserIdString);
++
++        showSuccess(gtcUserIdString, paymentUrl);
+       } catch (err) {
+         console.error("Form submission error:", err);
+-        confirmation.style.display = "block";
+-        confirmation.textContent = "❌ Request failed. Please check your connection and try again.";
+-        confirmation.className = "confirmation error";
++        const fallbackMessage =
++          err instanceof Error && err.message
++            ? err.message
++            : "Request failed. Please check your connection and try again.";
++        showError(fallbackMessage);
+       } finally {
+-        loadingMessage.remove();
++        if (loadingMessage.isConnected) {
++          loadingMessage.remove();
++        }
+       }
+     });
+ 
+     modeSelect.dispatchEvent(new Event("change"));
+ 
+     const params = new URLSearchParams(window.location.search);
+     if (params.get("verified") === "true") {
+       document.getElementById("formWrapper").innerHTML = `
+         <img src="https://kfilipenko.github.io/gtc-form/assets/logo.png" alt="GTC Logo" class="logo" />
+         <h2>Welcome to GTC</h2>
+         <p class="confirmation success" style="display:block;">🎉 Your email has been successfully verified! You can now log in and start using GTC.</p>
+       `;
+     }
+   </script>
+ </body>
+ </html>
+ <!-- тест 2 автодеплоя -->
+ 
+EOF
+)

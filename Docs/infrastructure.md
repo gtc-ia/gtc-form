@@ -65,6 +65,24 @@ sudo systemctl restart n8n
 
 - Description: Updates n8n every 2 days and restarts service
 
+## 🚀 Registration Form Deployment
+
+- Repository cloned at `~/gtc-form`
+- Static site for the registration form is served from `/var/www/gtc-form`
+- Deployment is handled by the `deploy.sh` script committed in the repository root
+  - Installs dependencies with `npm ci`
+  - Stages the `Client/gtc-form` and `assets` directories
+  - Syncs the bundle into `/var/www/gtc-form` using `rsync --delete`
+- Run on GTC1 after pulling the latest changes:
+
+  ```bash
+  cd ~/gtc-form
+  git pull origin main
+  ./deploy.sh
+  ```
+
+- Script exits with non-zero codes when requirements are missing (npm/node/rsync) or if syncing fails, enabling monitoring by GitHub Actions
+
 ## 📦 Backup & Restore
 
 - Backup created with:
