@@ -461,17 +461,16 @@
       return postJson(API_ENDPOINTS.emailRegistration, payload, "Email registration");
     }
 
-    async function registerUserWithGoogle({ email, googleSub, telemetry }) {
+    async function registerUserWithGoogle({ email, googleSub }) {
       if (!email || !googleSub) {
         throw new Error("Missing email or verified Google subject for Google registration.");
       }
       // register_user_google expects the verified Google subject and the email address:
-      // { p_google_sub: string, p_email: string, ...additional accepted telemetry fields }.
+      // { p_google_sub: string, p_email: string }.
       // Ensure the ID token has already been validated before invoking this RPC.
       const payload = {
         p_google_sub: googleSub,
         p_email: email,
-        ...telemetry,
       };
 
       return postJson(API_ENDPOINTS.googleRegistration, payload, "Google registration");
@@ -533,12 +532,29 @@
 
       const mode = modeSelect.value;
       const formData = new FormData(form);
-      const email = (formData.get("email") || "").trim();
+      let email = (formData.get("email") || "").trim();
       const password = formData.get("password") || "";
       const rawSource = formData.get("source") || "";
       const telemetry = collectRegistrationTelemetry(formData);
       const googleSub = getVerifiedGoogleSub();
+      const googleEmail = (form.dataset.googleEmail || "").trim();
       const isGoogleRegistration = mode === "register" && Boolean(googleSub);
+
+      if (isGoogleRegistration && googleEmail) {
+        email = googleEmail;
+      }
+
+      if (isGoogleRegistration && googleSubField) {
+        googleSubField.value = googleSub;
+      }
+
+      if (isGoogleRegistration && !email) {
+        const missingEmailMessage =
+          "❌ We could not determine your Google email address. Please try the Google sign-in flow again.";
+        setGoogleStatus(missingEmailMessage.replace(/^❌\s*/, ""), "error");
+        showConfirmation(missingEmailMessage, "error");
+        return;
+      }
 
       const isPasswordValid = mode === "register"
         ? isGoogleRegistration || validatePassword(password)
@@ -566,7 +582,6 @@
             result = await registerUserWithGoogle({
               email,
               googleSub,
-              telemetry,
             });
           } else {
             result = await registerUserWithEmail({
@@ -580,6 +595,9 @@
         }
 
         if (!result.ok) {
+          if (isGoogleRegistration) {
+            setGoogleStatus(result.errorMessage, "error");
+          }
           showConfirmation(`❌ ${result.errorMessage}`, "error");
           return;
         }
@@ -603,6 +621,9 @@
           err instanceof Error && err.message
             ? err.message
             : "Request failed. Please check your connection and try again.";
+        if (isGoogleRegistration) {
+          setGoogleStatus(fallbackMessage, "error");
+        }
         showConfirmation(`❌ ${fallbackMessage}`, "error");
       } finally {
         if (loadingMessage.isConnected) {
