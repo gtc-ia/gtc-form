@@ -39,3 +39,12 @@ git pull origin main
 ```
 
 The script installs Node dependencies with `npm ci`, stages the contents of `Client/gtc-form` and `assets`, and then uses `rsync` to update the server directory. Deployment is idempotent—rerunning the script safely refreshes the production files. Set the `DEPLOY_TARGET_DIR` environment variable if you need to test against an alternate path before updating production.
+
+## 🛠 Local Development
+
+The project is a static site rendered from `Client/gtc-form`. To preview changes locally:
+
+1. Install dependencies once with `npm install`.
+2. Run `npm start` to launch a local static server on [http://localhost:3000](http://localhost:3000).
+
+The `start` script uses [`serve`](https://www.npmjs.com/package/serve) to host the contents of `Client/gtc-form`, enabling contributors to test changes to the HTML bundle without additional tooling.
