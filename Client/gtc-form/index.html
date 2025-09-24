@@ -324,24 +324,28 @@
 
       confirmation.append(baseMessage);
 
-      if (!gtcUserId) {
-        return;
+      if (gtcUserId) {
+        confirmation.append(document.createElement("br"), document.createElement("br"));
+
+        const idLine = document.createElement("span");
+        idLine.textContent = `Your GTC User ID: ${gtcUserId}`;
+        confirmation.append(idLine, document.createElement("br"));
+
+        const paymentLink = document.createElement("a");
+        paymentLink.href = `https://pay.gtstor.com/payment.php?user_id=${encodeURIComponent(
+          gtcUserId
+        )}`;
+        paymentLink.textContent = "Complete your payment";
+        paymentLink.target = "_blank";
+        paymentLink.rel = "noopener noreferrer";
+        confirmation.append(paymentLink);
       }
 
       confirmation.append(document.createElement("br"), document.createElement("br"));
 
-      const idLine = document.createElement("span");
-      idLine.textContent = `Your GTC User ID: ${gtcUserId}`;
-      confirmation.append(idLine, document.createElement("br"));
-
-      const paymentLink = document.createElement("a");
-      paymentLink.href = `https://pay.gtstor.com/payment.php?user_id=${encodeURIComponent(
-        gtcUserId
-      )}`;
-      paymentLink.textContent = "Complete your payment";
-      paymentLink.target = "_blank";
-      paymentLink.rel = "noopener noreferrer";
-      confirmation.append(paymentLink);
+      const nextSteps = document.createElement("span");
+      nextSteps.textContent = "You can submit another request using the form above.";
+      confirmation.append(nextSteps);
     }
 
     function extractGtcUserId(data) {
@@ -611,10 +615,7 @@
           email,
         });
 
-        form.style.display = "none";
-        if (isGoogleRegistration) {
-          clearGoogleRegistrationState({ clearStatus: false });
-        }
+        prepareFormForNextSubmission({ mode, isGoogleRegistration });
       } catch (err) {
         console.error("Form submission error:", err);
         const fallbackMessage =
@@ -695,6 +696,49 @@
       }
       if (passwordInput) {
         passwordInput.dispatchEvent(new Event("input"));
+      }
+    }
+
+    function prepareFormForNextSubmission({ mode, isGoogleRegistration }) {
+      const nextMode = mode || modeSelect.value;
+
+      form.reset();
+
+      if (modeSelect) {
+        modeSelect.value = nextMode;
+        modeSelect.dispatchEvent(new Event("change"));
+      }
+
+      clearGoogleRegistrationState({ clearStatus: true });
+
+      if (
+        isGoogleRegistration &&
+        window.google &&
+        window.google.accounts &&
+        window.google.accounts.id &&
+        typeof window.google.accounts.id.disableAutoSelect === "function"
+      ) {
+        window.google.accounts.id.disableAutoSelect();
+      }
+
+      if (
+        isGoogleRegistration &&
+        nextMode === "register" &&
+        googleSection &&
+        googleSection.style.display !== "none"
+      ) {
+        setGoogleStatus(
+          "Use the button above to verify another Google account.",
+          "info"
+        );
+      }
+
+      if (emailInput) {
+        emailInput.focus();
+      }
+
+      if (confirmation && typeof confirmation.scrollIntoView === "function") {
+        confirmation.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }
 
