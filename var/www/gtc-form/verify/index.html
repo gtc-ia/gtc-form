@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify your email | GTC Auth</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      background: radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent);
+    }
+
+    main {
+      width: min(480px, 100%);
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 36px 32px;
+      box-shadow: 0 25px 45px rgba(15, 23, 42, 0.1);
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 600;
+    }
+
+    p {
+      margin: 12px 0 24px;
+      color: #475569;
+      font-size: 1rem;
+    }
+
+    .status {
+      border-radius: 14px;
+      padding: 16px 18px;
+      font-size: 1rem;
+      margin-bottom: 24px;
+    }
+
+    .status.success {
+      background: rgba(16, 185, 129, 0.12);
+      color: #047857;
+    }
+
+    .status.error {
+      background: rgba(248, 113, 113, 0.12);
+      color: #ef4444;
+    }
+
+    button {
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: none;
+      background-color: #0f172a;
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      display: inline-flex;
+      justify-content: center;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(15, 23, 42, 0.2);
+    }
+
+    .spinner {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+      color: #475569;
+      font-size: 0.95rem;
+    }
+
+    .spinner span {
+      width: 8px;
+      height: 8px;
+      background: #3b82f6;
+      border-radius: 50%;
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    .spinner span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .spinner span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+
+    @media (max-width: 520px) {
+      main {
+        padding: 28px 24px;
+      }
+
+      h1 {
+        font-size: 1.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Verify your email</h1>
+    <p>We are confirming your access. This may take a moment.</p>
+    <div id="status" class="status"></div>
+    <div id="loading" class="spinner">
+      <span></span><span></span><span></span>
+      Processing...
+    </div>
+    <div id="actions" hidden>
+      <button id="continue-button">Continue to chat</button>
+    </div>
+  </main>
+
+  <script>
+    const statusBox = document.getElementById('status');
+    const loadingIndicator = document.getElementById('loading');
+    const actions = document.getElementById('actions');
+    const continueButton = document.getElementById('continue-button');
+
+    function showStatus(message, type) {
+      statusBox.textContent = message;
+      statusBox.className = `status ${type}`;
+    }
+
+    async function postJSON(url, payload) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        const err = new Error('Request failed');
+        err.status = response.status;
+        err.body = errorBody;
+        throw err;
+      }
+      return response.json();
+    }
+
+    function getTokenFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('token');
+    }
+
+    async function verifyEmail() {
+      const token = getTokenFromQuery();
+      if (!token) {
+        showStatus('Verification token is missing. Please use the link from your email.', 'error');
+        loadingIndicator.hidden = true;
+        return;
+      }
+      try {
+        const data = await postJSON('/auth/verify', { token });
+        localStorage.setItem('gtc_user_id', String(data.gtc_user_id));
+        localStorage.setItem('email', data.email);
+        showStatus('Your email has been verified successfully.', 'success');
+        actions.hidden = false;
+      } catch (error) {
+        if (error.status === 400 || error.status === 401) {
+          showStatus('The verification link is invalid or expired.', 'error');
+        } else {
+          showStatus('We were unable to verify your email. Please request a new link.', 'error');
+        }
+      } finally {
+        loadingIndicator.hidden = true;
+      }
+    }
+
+    continueButton.addEventListener('click', () => {
+      window.location.href = '/chat';
+    });
+
+    verifyEmail();
+  </script>
+</body>
+</html>
