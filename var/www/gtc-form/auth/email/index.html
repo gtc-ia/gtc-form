@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in with Email | GTC Auth</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), transparent);
+    }
+
+    main {
+      width: min(480px, 100%);
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 36px 32px;
+      box-shadow: 0 25px 45px rgba(15, 23, 42, 0.1);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 600;
+    }
+
+    p.description {
+      margin: 8px 0 24px;
+      color: #475569;
+    }
+
+    form, .view {
+      display: none;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    form.active, .view.active {
+      display: flex;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-weight: 500;
+      color: #1f2937;
+    }
+
+    input {
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      font-size: 1rem;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: rgba(59, 130, 246, 0.6);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    button {
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: none;
+      background-color: #0f172a;
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      display: inline-flex;
+      justify-content: center;
+    }
+
+    button.secondary {
+      background-color: #e2e8f0;
+      color: #0f172a;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(15, 23, 42, 0.2);
+    }
+
+    .hint {
+      color: #64748b;
+      font-size: 0.875rem;
+      margin-top: -12px;
+    }
+
+    .error {
+      color: #ef4444;
+      background: rgba(248, 113, 113, 0.12);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+    }
+
+    .success {
+      color: #047857;
+      background: rgba(16, 185, 129, 0.12);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+    }
+
+    .link-button {
+      background: none;
+      border: none;
+      color: #2563eb;
+      padding: 0;
+      font-size: 0.95rem;
+      cursor: pointer;
+      align-self: flex-start;
+    }
+
+    .link-button:hover {
+      text-decoration: underline;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.95rem;
+      color: #475569;
+    }
+
+    .loading span {
+      width: 8px;
+      height: 8px;
+      background: #3b82f6;
+      border-radius: 50%;
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    .loading span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .loading span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+
+    @media (max-width: 520px) {
+      main {
+        padding: 28px 24px;
+      }
+
+      h1 {
+        font-size: 1.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Sign in with email</h1>
+    <p class="description">Use your work email to access GTChain services.</p>
+
+    <form id="email-form" class="active">
+      <label>
+        Email address
+        <input type="email" id="email-input" name="email" placeholder="you@example.com" autocomplete="email" required>
+      </label>
+      <div id="email-error" class="error" hidden></div>
+      <button type="submit">Continue</button>
+    </form>
+
+    <form id="signin-form">
+      <div>
+        <strong id="signin-email"></strong>
+      </div>
+      <label>
+        Password
+        <input type="password" id="signin-password" name="password" placeholder="Enter your password" autocomplete="current-password" required minlength="8">
+      </label>
+      <div id="signin-error" class="error" hidden></div>
+      <button type="submit">Sign in</button>
+      <button type="button" class="link-button" id="use-another-email">Use another email</button>
+    </form>
+
+    <form id="register-form">
+      <div>
+        <strong id="register-email"></strong>
+      </div>
+      <label>
+        Full name
+        <input type="text" id="register-name" name="name" placeholder="Jane Doe" autocomplete="name" required>
+      </label>
+      <label>
+        Create password
+        <input type="password" id="register-password" name="password" placeholder="Minimum 8 characters" autocomplete="new-password" required minlength="8">
+      </label>
+      <p class="hint">Use at least 8 characters, including letters, numbers, and a special character.</p>
+      <div id="register-error" class="error" hidden></div>
+      <button type="submit">Create account</button>
+      <button type="button" class="link-button" id="use-another-email-2">Use another email</button>
+    </form>
+
+    <div id="verification-view" class="view">
+      <div class="success" id="verification-message"></div>
+      <button type="button" id="resend-button" class="secondary">Resend email</button>
+      <button type="button" id="back-to-email" class="link-button">Use another email</button>
+    </div>
+
+    <div id="loading-indicator" class="loading" hidden>
+      <span></span><span></span><span></span>
+      Processing...
+    </div>
+  </main>
+
+  <script>
+    const emailForm = document.getElementById('email-form');
+    const signinForm = document.getElementById('signin-form');
+    const registerForm = document.getElementById('register-form');
+    const verificationView = document.getElementById('verification-view');
+    const loadingIndicator = document.getElementById('loading-indicator');
+
+    const signinEmailEl = document.getElementById('signin-email');
+    const registerEmailEl = document.getElementById('register-email');
+    const verificationMessage = document.getElementById('verification-message');
+
+    const emailInput = document.getElementById('email-input');
+    const signinPasswordInput = document.getElementById('signin-password');
+    const registerNameInput = document.getElementById('register-name');
+    const registerPasswordInput = document.getElementById('register-password');
+
+    const emailError = document.getElementById('email-error');
+    const signinError = document.getElementById('signin-error');
+    const registerError = document.getElementById('register-error');
+
+    const resendButton = document.getElementById('resend-button');
+    const backToEmailButton = document.getElementById('back-to-email');
+    const useAnotherButtons = [
+      document.getElementById('use-another-email'),
+      document.getElementById('use-another-email-2')
+    ];
+
+    let currentEmail = '';
+
+    function showView(view) {
+      [emailForm, signinForm, registerForm].forEach(form => form.classList.remove('active'));
+      verificationView.classList.remove('active');
+
+      if (view === 'email') {
+        emailForm.classList.add('active');
+        emailInput.focus();
+      } else if (view === 'signin') {
+        signinForm.classList.add('active');
+        signinPasswordInput.focus();
+      } else if (view === 'register') {
+        registerForm.classList.add('active');
+        registerNameInput.focus();
+      } else if (view === 'verification') {
+        verificationView.classList.add('active');
+      }
+    }
+
+    function setLoading(isLoading) {
+      loadingIndicator.hidden = !isLoading;
+      const buttons = document.querySelectorAll('button');
+      buttons.forEach(btn => {
+        if (isLoading) {
+          btn.dataset.prevDisabled = btn.disabled;
+          btn.disabled = true;
+        } else {
+          btn.disabled = btn.dataset.prevDisabled === 'true';
+          delete btn.dataset.prevDisabled;
+        }
+      });
+    }
+
+    function showError(target, message) {
+      target.textContent = message;
+      target.hidden = !message;
+    }
+
+    function validatePasswordPolicy(password) {
+      const hasLength = password.length >= 8;
+      const hasLetter = /[A-Za-z]/.test(password);
+      const hasDigit = /\d/.test(password);
+      const hasSpecial = /[^A-Za-z0-9]/.test(password);
+      return hasLength && hasLetter && hasDigit && hasSpecial;
+    }
+
+    async function postJSON(url, payload) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        const err = new Error('Request failed');
+        err.status = response.status;
+        err.body = errorBody;
+        throw err;
+      }
+      return response.json();
+    }
+
+    emailForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      showError(emailError, '');
+      const emailValue = emailInput.value.trim().toLowerCase();
+      if (!emailValue) {
+        showError(emailError, 'Please enter an email address.');
+        return;
+      }
+      currentEmail = emailValue;
+      setLoading(true);
+      try {
+        const data = await postJSON('/auth/check_email', { email: currentEmail });
+        if (data.exists) {
+          signinEmailEl.textContent = currentEmail;
+          showView('signin');
+        } else {
+          registerEmailEl.textContent = currentEmail;
+          showView('register');
+        }
+      } catch (error) {
+        showError(emailError, 'Unable to check email right now. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    signinForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      showError(signinError, '');
+      const password = signinPasswordInput.value;
+      if (!password) {
+        showError(signinError, 'Please enter your password.');
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await postJSON('/auth/login', { email: currentEmail, password });
+        localStorage.setItem('gtc_user_id', String(data.gtc_user_id));
+        localStorage.setItem('email', data.email);
+        window.location.href = '/chat';
+      } catch (error) {
+        if (error.status === 401) {
+          showError(signinError, 'Invalid email or password.');
+        } else if (error.status === 403 && error.body?.code === 'email_not_verified') {
+          verificationMessage.textContent = `Your email (${currentEmail}) is not verified yet. Please check your inbox.`;
+          showView('verification');
+        } else {
+          showError(signinError, 'Something went wrong. Please try again.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    registerForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      showError(registerError, '');
+      const name = registerNameInput.value.trim();
+      const password = registerPasswordInput.value;
+      if (!name) {
+        showError(registerError, 'Please enter your name.');
+        return;
+      }
+      if (!validatePasswordPolicy(password)) {
+        showError(registerError, 'Password must be at least 8 characters and include letters, numbers, and a special character.');
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await postJSON('/auth/register', { email: currentEmail, password, name });
+        verificationMessage.textContent = `We\'ve sent a verification email to ${data.email}. Please check your inbox.`;
+        showView('verification');
+      } catch (error) {
+        if (error.status === 409 && error.body?.code === 'email_taken') {
+          showError(registerError, 'This email is already registered. Try signing in instead.');
+          signinEmailEl.textContent = currentEmail;
+          showView('signin');
+        } else {
+          showError(registerError, 'Registration failed. Please try again.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    resendButton.addEventListener('click', async () => {
+      if (!currentEmail) return;
+      setLoading(true);
+      try {
+        await postJSON('/auth/request_email_verification', { email: currentEmail });
+        verificationMessage.textContent = `We\'ve re-sent a verification email to ${currentEmail}.`;
+      } catch (error) {
+        verificationMessage.textContent = 'Unable to resend the verification email right now.';
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    backToEmailButton.addEventListener('click', () => {
+      showView('email');
+      emailInput.focus();
+    });
+
+    useAnotherButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        showError(signinError, '');
+        showError(registerError, '');
+        signinPasswordInput.value = '';
+        registerPasswordInput.value = '';
+        registerNameInput.value = '';
+        showView('email');
+        emailInput.focus();
+      });
+    });
+
+    showView('email');
+  </script>
+</body>
+</html>
