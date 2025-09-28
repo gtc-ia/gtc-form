@@ -19,6 +19,23 @@ import {
 import { sendVerificationEmail } from './mail.js';
 import { verifyGoogleCredential } from './google.js';
 
+const PASSWORD_POLICY = {
+  minLength: 8,
+  letter: /[A-Za-z]/,
+  digit: /\d/,
+  special: /[^A-Za-z0-9]/
+};
+
+function isPasswordStrong(password) {
+  const value = String(password);
+  return (
+    value.length >= PASSWORD_POLICY.minLength &&
+    PASSWORD_POLICY.letter.test(value) &&
+    PASSWORD_POLICY.digit.test(value) &&
+    PASSWORD_POLICY.special.test(value)
+  );
+}
+
 const app = express();
 
 app.use(helmet());
@@ -61,6 +78,10 @@ app.post('/auth/register', async (req, res) => {
   try {
     const exists = await getEmailRow(em);
     if (exists) return res.status(409).json({ code: 'email_taken' });
+
+    if (!isPasswordStrong(password)) {
+      return res.status(400).json({ code: 'weak_password' });
+    }
 
     const rounds = +process.env.BCRYPT_ROUNDS || 12;
     const hash = await bcrypt.hash(password, rounds);
