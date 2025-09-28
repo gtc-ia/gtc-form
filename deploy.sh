@@ -70,6 +70,17 @@ if [ -d "$ASSETS_DIR" ]; then
   fi
 fi
 
+log "Writing runtime configuration"
+GOOGLE_CLIENT_ID_ESCAPED=$(node -e "process.stdout.write(JSON.stringify(process.env.GOOGLE_CLIENT_ID || ''))")
+if [ "$GOOGLE_CLIENT_ID_ESCAPED" = '""' ]; then
+  log "WARNING: GOOGLE_CLIENT_ID is not set; Google sign-in will show a configuration error."
+fi
+cat > "$BUILD_DIR/gtc-config.js" <<EOF
+window.__GTC_CONFIG = Object.freeze({
+  googleClientId: ${GOOGLE_CLIENT_ID_ESCAPED}
+});
+EOF
+
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
   if command -v sudo >/dev/null 2>&1; then
