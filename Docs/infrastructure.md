@@ -77,11 +77,13 @@ sudo systemctl restart n8n
 
   ```bash
   cd ~/gtc-form
+  export GOOGLE_CLIENT_ID="<google-oauth-client-id>"
   git pull origin main
   ./deploy.sh
   ```
 
 - Script exits with non-zero codes when requirements are missing (npm/node/rsync) or if syncing fails, enabling monitoring by GitHub Actions
+- `deploy.sh` writes `/var/www/gtc-form/gtc-config.js` during sync. The script serializes the value of `$GOOGLE_CLIENT_ID` into that file so the Google sign-in page can initialize the OAuth client at runtime. Keep the environment variable in your shell profile or deployment automation to make redeployments reproducible.
 
 ## 📦 Backup & Restore
 
