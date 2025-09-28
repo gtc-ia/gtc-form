@@ -11,6 +11,7 @@
 - [Business Workflows](Docs/business/overview.md)
 - [Agents Logic](Docs/business/agents.md)
 - [Real Case Studies](Docs/business/case-001.md)
+- [GTC Auth Architecture & Deployment](docs/gtc-auth.md)
 
 ## 🌐 Live Endpoints
 
