@@ -406,6 +406,8 @@
           showError(registerError, 'This email is already registered. Try signing in instead.');
           signinEmailEl.textContent = currentEmail;
           showView('signin');
+        } else if (error.status === 400 && error.body?.code === 'weak_password') {
+          showError(registerError, 'Password must be at least 8 characters and include letters, numbers, and a special character.');
         } else {
           showError(registerError, 'Registration failed. Please try again.');
         }
