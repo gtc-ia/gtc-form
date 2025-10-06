@@ -1,6 +1,8 @@
 import pg from 'pg';
 const { Pool } = pg;
 
+export { isEntitlementActive } from './entitlement.js';
+
 export const pool = new Pool({
   host: process.env.PGHOST,
   port: +process.env.PGPORT,
@@ -78,7 +80,9 @@ export async function setEmailVerified(userId, email) {
 
 export async function createVerifyToken(userId, email, ttlMinutes = 60) {
   const { rows } = await pool.query(
-    'INSERT INTO public.auth_verification(token,user_id,email,expires_at) VALUES (gen_random_uuid(),$1,$2,now() + ($3 || '' minutes'')::interval) RETURNING token',
+    `INSERT INTO public.auth_verification(token,user_id,email,expires_at)
+     VALUES (gen_random_uuid(),$1,$2,now() + ($3 || ' minutes')::interval)
+     RETURNING token`,
     [userId, email, ttlMinutes]
   );
   return rows[0].token;
