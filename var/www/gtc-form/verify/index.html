@@ -126,7 +126,6 @@
       }
     }
   </style>
-  <script src="/gtc-config.js"></script>
 </head>
 <body>
   <main>
@@ -142,9 +141,8 @@
     </div>
   </main>
 
-  <script>
-    const runtimeConfig = window.__GTC_CONFIG ?? {};
-
+  <script type="module">
+    import { determineSubscriptionRedirect } from '../auth/shared/subscription.mjs';
     const statusBox = document.getElementById('status');
     const loadingIndicator = document.getElementById('loading');
     const actions = document.getElementById('actions');
@@ -173,40 +171,9 @@
       return response.json();
     }
 
-    const PAYMENT_BASE_URL = 'https://pay.gtstor.com/payment.php';
-    const PAYMENT_RETURN_PATH = '/chat';
-
-    function buildPaymentUrl(userId) {
-      const url = new URL(PAYMENT_BASE_URL);
-      url.searchParams.set('user_id', userId);
-      url.searchParams.set('returnTo', PAYMENT_RETURN_PATH);
-      return url.toString();
-    }
-
     async function redirectAfterEntitlementCheck(userId) {
-      const endpoint = `/auth/subscription_status?gtc_user_id=${encodeURIComponent(userId)}`;
-      let response;
-      try {
-        response = await fetch(endpoint);
-      } catch (error) {
-        const err = new Error('subscription_check_failed');
-        err.cause = error;
-        throw err;
-      }
-
-      if (!response.ok) {
-        const err = new Error('subscription_check_failed');
-        err.status = response.status;
-        throw err;
-      }
-
-      const data = await response.json();
-      if (data && data.active) {
-        window.location.href = PAYMENT_RETURN_PATH;
-        return;
-      }
-
-      window.location.href = buildPaymentUrl(userId);
+      const targetUrl = await determineSubscriptionRedirect(userId);
+      window.location.href = targetUrl;
     }
 
     function getTokenFromQuery() {
