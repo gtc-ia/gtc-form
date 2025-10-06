@@ -1,3 +1,5 @@
 window.__GTC_CONFIG = Object.freeze({
-  googleClientId: ''
+  googleClientId: '',
+  paymentBaseUrl: 'https://pay.gtstor.com/payment.php',
+  chatDestinationUrl: 'https://app.gtstor.com/chat/'
 });

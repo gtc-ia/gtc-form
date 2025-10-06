@@ -117,8 +117,8 @@
       return response.json();
     }
 
-    const PAYMENT_BASE_URL = 'https://pay.gtstor.com/payment.php';
-    const CHAT_DESTINATION_URL = 'https://app.gtstor.com/chat/';
+    const PAYMENT_BASE_URL = runtimeConfig.paymentBaseUrl || 'https://pay.gtstor.com/payment.php';
+    const CHAT_DESTINATION_URL = runtimeConfig.chatDestinationUrl || 'https://app.gtstor.com/chat/';
 
     function buildPaymentUrl(userId) {
       const url = new URL(PAYMENT_BASE_URL);
