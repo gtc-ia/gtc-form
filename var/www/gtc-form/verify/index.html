@@ -170,6 +170,42 @@
       return response.json();
     }
 
+    const PAYMENT_BASE_URL = 'https://pay.gtstor.com/payment.php';
+    const CHAT_DESTINATION_URL = 'https://app.gtstor.com/chat/';
+
+    function buildPaymentUrl(userId) {
+      const url = new URL(PAYMENT_BASE_URL);
+      url.searchParams.set('user_id', userId);
+      url.searchParams.set('returnTo', CHAT_DESTINATION_URL);
+      return url.toString();
+    }
+
+    async function redirectAfterEntitlementCheck(userId) {
+      const endpoint = `/auth/subscription_status?gtc_user_id=${encodeURIComponent(userId)}`;
+      let response;
+      try {
+        response = await fetch(endpoint);
+      } catch (error) {
+        const err = new Error('subscription_check_failed');
+        err.cause = error;
+        throw err;
+      }
+
+      if (!response.ok) {
+        const err = new Error('subscription_check_failed');
+        err.status = response.status;
+        throw err;
+      }
+
+      const data = await response.json();
+      if (data && data.active) {
+        window.location.href = CHAT_DESTINATION_URL;
+        return;
+      }
+
+      window.location.href = buildPaymentUrl(userId);
+    }
+
     function getTokenFromQuery() {
       const params = new URLSearchParams(window.location.search);
       return params.get('token');
@@ -199,8 +235,24 @@
       }
     }
 
-    continueButton.addEventListener('click', () => {
-      window.location.href = '/chat';
+    continueButton.addEventListener('click', async () => {
+      const storedUserId = localStorage.getItem('gtc_user_id');
+      if (!storedUserId) {
+        showStatus('Missing account information. Please sign in again.', 'error');
+        return;
+      }
+
+      continueButton.disabled = true;
+      showStatus('Checking your subscription status...', 'success');
+      loadingIndicator.hidden = false;
+
+      try {
+        await redirectAfterEntitlementCheck(storedUserId);
+      } catch (error) {
+        continueButton.disabled = false;
+        loadingIndicator.hidden = true;
+        showStatus('We could not confirm your subscription status. Please try again.', 'error');
+      }
     });
 
     verifyEmail();

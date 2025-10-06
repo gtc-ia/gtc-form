@@ -1,6 +1,8 @@
 import pg from 'pg';
 const { Pool } = pg;
 
+export { isEntitlementActive } from './entitlement.js';
+
 export const pool = new Pool({
   host: process.env.PGHOST,
   port: +process.env.PGPORT,
@@ -78,7 +80,9 @@ export async function setEmailVerified(userId, email) {
 
 export async function createVerifyToken(userId, email, ttlMinutes = 60) {
   const { rows } = await pool.query(
-    'INSERT INTO public.auth_verification(token,user_id,email,expires_at) VALUES (gen_random_uuid(),$1,$2,now() + ($3 || '' minutes'')::interval) RETURNING token',
+    `INSERT INTO public.auth_verification(token,user_id,email,expires_at)
+     VALUES (gen_random_uuid(),$1,$2,now() + ($3 || ' minutes')::interval)
+     RETURNING token`,
     [userId, email, ttlMinutes]
   );
   return rows[0].token;
@@ -95,4 +99,56 @@ export async function useVerifyToken(token) {
     [token]
   );
   return rows[0] || null;
+}
+
+function isRelationMissing(error) {
+  return error && error.code === '42P01';
+}
+
+function isColumnMissing(error) {
+  return error && error.code === '42703';
+}
+
+export async function getLatestEntitlement(userId) {
+  if (!userId) return null;
+
+  const params = [userId];
+  try {
+    const { rows } = await pool.query(
+      `SELECT status, end_date, livemode
+         FROM public.v_user_entitlement
+        WHERE gtc_user_id=$1
+        ORDER BY end_date DESC NULLS LAST
+        LIMIT 1`,
+      params
+    );
+    if (rows[0]) return rows[0];
+  } catch (error) {
+    if (!isRelationMissing(error)) throw error;
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT status, end_date, livemode
+         FROM public.subscriptions
+        WHERE gtc_user_id=$1
+        ORDER BY end_date DESC NULLS LAST
+        LIMIT 1`,
+      params
+    );
+    if (rows[0]) return rows[0];
+  } catch (error) {
+    if (!isRelationMissing(error) && !isColumnMissing(error)) throw error;
+    const { rows } = await pool.query(
+      `SELECT status, end_date
+         FROM public.subscriptions
+        WHERE gtc_user_id=$1
+        ORDER BY end_date DESC NULLS LAST
+        LIMIT 1`,
+      params
+    );
+    if (rows[0]) return rows[0];
+  }
+
+  return null;
 }
