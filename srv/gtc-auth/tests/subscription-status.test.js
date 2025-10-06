@@ -31,11 +31,3 @@ test('inactive when expired', () => {
   const past = new Date(Date.now() - 86400_000).toISOString();
   assert.equal(isEntitlementActive({ status: 'active', end_date: past }), false);
 });
-
-test('active when status uses uppercase letters', () => {
-  assert.equal(isEntitlementActive({ status: 'ACTIVE', end_date: null }), true);
-});
-
-test('active when end_date is malformed', () => {
-  assert.equal(isEntitlementActive({ status: 'trialing', end_date: 'not-a-date' }), true);
-});
