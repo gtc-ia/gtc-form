@@ -173,13 +173,13 @@
       return response.json();
     }
 
-    const PAYMENT_BASE_URL = runtimeConfig.paymentBaseUrl || 'https://pay.gtstor.com/payment.php';
-    const CHAT_DESTINATION_URL = runtimeConfig.chatDestinationUrl || 'https://app.gtstor.com/chat/';
+    const PAYMENT_BASE_URL = 'https://pay.gtstor.com/payment.php';
+    const PAYMENT_RETURN_PATH = '/chat';
 
     function buildPaymentUrl(userId) {
       const url = new URL(PAYMENT_BASE_URL);
       url.searchParams.set('user_id', userId);
-      url.searchParams.set('returnTo', CHAT_DESTINATION_URL);
+      url.searchParams.set('returnTo', PAYMENT_RETURN_PATH);
       return url.toString();
     }
 
@@ -202,7 +202,7 @@
 
       const data = await response.json();
       if (data && data.active) {
-        window.location.href = CHAT_DESTINATION_URL;
+        window.location.href = PAYMENT_RETURN_PATH;
         return;
       }
 
