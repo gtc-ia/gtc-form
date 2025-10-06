@@ -96,3 +96,67 @@ export async function useVerifyToken(token) {
   );
   return rows[0] || null;
 }
+
+const ACTIVE_STATUSES = ['active', 'trialing'];
+
+function isRelationMissing(error) {
+  return error && error.code === '42P01';
+}
+
+function isColumnMissing(error) {
+  return error && error.code === '42703';
+}
+
+export async function getLatestEntitlement(userId) {
+  if (!userId) return null;
+
+  const params = [userId];
+  try {
+    const { rows } = await pool.query(
+      `SELECT status, end_date, livemode
+         FROM public.v_user_entitlement
+        WHERE gtc_user_id=$1
+        ORDER BY end_date DESC NULLS LAST
+        LIMIT 1`,
+      params
+    );
+    if (rows[0]) return rows[0];
+  } catch (error) {
+    if (!isRelationMissing(error)) throw error;
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT status, end_date, livemode
+         FROM public.subscriptions
+        WHERE gtc_user_id=$1
+        ORDER BY end_date DESC NULLS LAST
+        LIMIT 1`,
+      params
+    );
+    if (rows[0]) return rows[0];
+  } catch (error) {
+    if (!isRelationMissing(error) && !isColumnMissing(error)) throw error;
+    const { rows } = await pool.query(
+      `SELECT status, end_date
+         FROM public.subscriptions
+        WHERE gtc_user_id=$1
+        ORDER BY end_date DESC NULLS LAST
+        LIMIT 1`,
+      params
+    );
+    if (rows[0]) return rows[0];
+  }
+
+  return null;
+}
+
+export function isEntitlementActive(record) {
+  if (!record) return false;
+  const status = record.status ? String(record.status).toLowerCase() : '';
+  if (!ACTIVE_STATUSES.includes(status)) return false;
+  if (!record.end_date) return true;
+  const expiresAt = new Date(record.end_date);
+  if (Number.isNaN(expiresAt.getTime())) return true;
+  return expiresAt.getTime() > Date.now();
+}
