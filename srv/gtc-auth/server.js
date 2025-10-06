@@ -14,7 +14,9 @@ import {
   useVerifyToken,
   setEmailVerified,
   getGoogleBySub,
-  createGoogleUser
+  createGoogleUser,
+  getLatestEntitlement,
+  isEntitlementActive
 } from './db.js';
 import { sendVerificationEmail } from './mail.js';
 import { verifyGoogleCredential } from './google.js';
@@ -161,6 +163,37 @@ app.post('/auth/google', async (req, res) => {
     return res.json({ gtc_user_id: newId, email });
   } catch (e) {
     res.status(401).json({ code: 'invalid_google_token' });
+  }
+});
+
+app.get('/auth/subscription_status', async (req, res) => {
+  const { gtc_user_id: rawId } = req.query || {};
+  if (!rawId) return res.status(400).json({ code: 'bad_request' });
+
+  const trimmed = String(rawId).trim();
+  if (!trimmed) return res.status(400).json({ code: 'bad_request' });
+
+  try {
+    const entitlement = await getLatestEntitlement(trimmed);
+    if (!entitlement) {
+      return res.json({ active: false, status: null, expires_at: null });
+    }
+
+    const active = isEntitlementActive(entitlement);
+    const payload = {
+      active,
+      status: entitlement.status ?? null,
+      expires_at: entitlement.end_date ?? null
+    };
+
+    if (Object.prototype.hasOwnProperty.call(entitlement, 'livemode')) {
+      payload.livemode = entitlement.livemode;
+    }
+
+    res.json(payload);
+  } catch (error) {
+    console.error('subscription_status error', error);
+    res.status(500).json({ code: 'server_error' });
   }
 });
 
