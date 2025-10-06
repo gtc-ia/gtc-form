@@ -1,8 +1,6 @@
 import pg from 'pg';
 const { Pool } = pg;
 
-import { ACTIVE_STATUSES } from './entitlement.js';
-
 export { isEntitlementActive } from './entitlement.js';
 
 export const pool = new Pool({
@@ -103,6 +101,8 @@ export async function useVerifyToken(token) {
   return rows[0] || null;
 }
 
+const ACTIVE_STATUSES = ['active', 'trialing'];
+
 function isRelationMissing(error) {
   return error && error.code === '42P01';
 }
@@ -114,21 +114,19 @@ function isColumnMissing(error) {
 export async function getLatestEntitlement(userId) {
   if (!userId) return null;
 
-  const paramsWithMode = [userId, ACTIVE_STATUSES];
+  const params = [userId];
   try {
     const { rows } = await pool.query(
       `SELECT status, end_date, livemode
          FROM public.v_user_entitlement
         WHERE gtc_user_id=$1
-          AND status = ANY($2)
-          AND (end_date IS NULL OR end_date > NOW())
-        ORDER BY CASE WHEN livemode THEN 0 ELSE 1 END, end_date DESC NULLS LAST
+        ORDER BY end_date DESC NULLS LAST
         LIMIT 1`,
-      paramsWithMode
+      params
     );
     if (rows[0]) return rows[0];
   } catch (error) {
-    if (!isRelationMissing(error) && !isColumnMissing(error)) throw error;
+    if (!isRelationMissing(error)) throw error;
   }
 
   try {
@@ -136,11 +134,9 @@ export async function getLatestEntitlement(userId) {
       `SELECT status, end_date, livemode
          FROM public.subscriptions
         WHERE gtc_user_id=$1
-          AND status = ANY($2)
-          AND (end_date IS NULL OR end_date > NOW())
-        ORDER BY CASE WHEN livemode THEN 0 ELSE 1 END, end_date DESC NULLS LAST
+        ORDER BY end_date DESC NULLS LAST
         LIMIT 1`,
-      paramsWithMode
+      params
     );
     if (rows[0]) return rows[0];
   } catch (error) {
@@ -149,14 +145,22 @@ export async function getLatestEntitlement(userId) {
       `SELECT status, end_date
          FROM public.subscriptions
         WHERE gtc_user_id=$1
-          AND status = ANY($2)
-          AND (end_date IS NULL OR end_date > NOW())
         ORDER BY end_date DESC NULLS LAST
         LIMIT 1`,
-      paramsWithMode
+      params
     );
     if (rows[0]) return rows[0];
   }
 
   return null;
+}
+
+export function isEntitlementActive(record) {
+  if (!record) return false;
+  const status = record.status ? String(record.status).toLowerCase() : '';
+  if (!ACTIVE_STATUSES.includes(status)) return false;
+  if (!record.end_date) return true;
+  const expiresAt = new Date(record.end_date);
+  if (Number.isNaN(expiresAt.getTime())) return true;
+  return expiresAt.getTime() > Date.now();
 }
