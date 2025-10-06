@@ -179,6 +179,7 @@
       }
     }
   </style>
+  <script src="/gtc-config.js"></script>
 </head>
 <body>
   <main>
@@ -238,6 +239,8 @@
   </main>
 
   <script>
+    const runtimeConfig = window.__GTC_CONFIG ?? {};
+
     const emailForm = document.getElementById('email-form');
     const signinForm = document.getElementById('signin-form');
     const registerForm = document.getElementById('register-form');
@@ -329,6 +332,42 @@
       return response.json();
     }
 
+    const PAYMENT_BASE_URL = runtimeConfig.paymentBaseUrl || 'https://pay.gtstor.com/payment.php';
+    const CHAT_DESTINATION_URL = runtimeConfig.chatDestinationUrl || 'https://app.gtstor.com/chat/';
+
+    function buildPaymentUrl(userId) {
+      const url = new URL(PAYMENT_BASE_URL);
+      url.searchParams.set('user_id', userId);
+      url.searchParams.set('returnTo', CHAT_DESTINATION_URL);
+      return url.toString();
+    }
+
+    async function redirectAfterEntitlementCheck(userId) {
+      const endpoint = `/auth/subscription_status?gtc_user_id=${encodeURIComponent(userId)}`;
+      let response;
+      try {
+        response = await fetch(endpoint, { method: 'GET' });
+      } catch (error) {
+        const err = new Error('subscription_check_failed');
+        err.cause = error;
+        throw err;
+      }
+
+      if (!response.ok) {
+        const err = new Error('subscription_check_failed');
+        err.status = response.status;
+        throw err;
+      }
+
+      const data = await response.json();
+      if (data && data.active) {
+        window.location.href = CHAT_DESTINATION_URL;
+        return;
+      }
+
+      window.location.href = buildPaymentUrl(userId);
+    }
+
     emailForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       showError(emailError, '');
@@ -366,10 +405,16 @@
       setLoading(true);
       try {
         const data = await postJSON('/auth/login', { email: currentEmail, password });
-        localStorage.setItem('gtc_user_id', String(data.gtc_user_id));
+        const userId = String(data.gtc_user_id);
+        localStorage.setItem('gtc_user_id', userId);
         localStorage.setItem('email', data.email);
-        window.location.href = '/chat';
+        await redirectAfterEntitlementCheck(userId);
+        return;
       } catch (error) {
+        if (error.message === 'subscription_check_failed') {
+          showError(signinError, 'We were unable to confirm your subscription status. Please try again.');
+          return;
+        }
         if (error.status === 401) {
           showError(signinError, 'Invalid email or password.');
         } else if (error.status === 403 && error.body?.code === 'email_not_verified') {
