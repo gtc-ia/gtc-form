@@ -69,26 +69,6 @@ This document describes the current configuration, software stack, and automatio
 - **Verification tokens** — table `public.auth_verification` (columns: `token`, `user_id`, `email`, `expires_at`, `used`, `created_at`).
 - **Subscriptions** — table `public.subscriptions` maintained by n8n (`subscription_id`, **`gtc_user_id`**, `stripe_customer_id`, `stripe_subscription_id`, `plan_code`, `status`, `start_date`, `end_date`, `created_at`, `updated_at`, `stripe_price_id`, `stripe_product_id`, `livemode`). The `gtc_user_id` column is NOT NULL and links billing status to the auth profile.
 
-## ✅ Operational Tests
-
-- **Latest run**: `npm test` (Node 18, npm 9) — 2025-10-07 07:59 UTC
-- **Command location**: repository root (`~/gtc-form`)
-- **Scope**: executes `srv/gtc-auth/tests/subscription-status.test.js`
-- **Purpose**: validates that entitlement logic recognises subscriptions only when `gtc_user_id` is present with an active (or non-expired trial) status, preventing `NULL` inserts in `public.subscriptions`.
-- **Result summary**:
-
-  ```text
-  ✔ inactive when record is null
-  ✔ inactive when status missing
-  ✔ inactive when status not active
-  ✔ active when status active without end_date
-  ✔ active when not expired
-  ✔ inactive when expired
-  tests 6, pass 6, fail 0, duration_ms ~241
-  ```
-
-Store the console log from production runs alongside deployment notes so that operators can confirm the entitlement checks are guarding against missing `gtc_user_id` values before n8n writes to `public.subscriptions`.
-
 ## 🔐 Access & Identity
 
 - SSH Access via:
