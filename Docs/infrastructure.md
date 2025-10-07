@@ -35,6 +35,60 @@ This document describes the current configuration, software stack, and automatio
   - Configured for service `gtc_db` under user `gtc_user`
   - Also includes parallel instance used by Coder IDE on port 43015
 
+- **gtc-auth** (Node.js authentication API)
+  - Source: `~/gtc-form/srv/gtc-auth`
+  - Runtime: systemd unit `gtc-auth.service`
+  - Port: 8085 (proxied via Nginx)
+  - Depends on: PostgreSQL (`gtc_db`), SMTP credentials, Google OAuth client ID
+
+- **Registration web front-end**
+  - Deployed via `deploy.sh` into `/var/www/gtc-form`
+  - Served as static assets by Nginx (port 443)
+  - Integrates with `gtc-auth` for email/password and Google login flows
+
+- **Subscription processing workflow**
+  - Implemented in n8n (`Save Subscription` node)
+  - Consumes Stripe webhook payloads and persists subscription state
+  - Requires `gtc_user_id` to attach billing to the authenticated profile
+
+## 🧩 Service Topology & Data Flow
+
+| Step | Origin service | Destination | Notes |
+|------|-----------------|-------------|-------|
+| 1 | Registration form (`/var/www/gtc-form`) | `gtc-auth` (`/auth/*`) | Collects email/password or Google credential and exchanges for `gtc_user_id`. |
+| 2 | `gtc-auth` | PostgreSQL (`gtc_db`) | Creates records in `public."user"`, `auth_email`, `auth_google`, and verification tokens. |
+| 3 | Registration form / payment portal | Stripe billing | Payment links include `gtc_user_id` query parameter so Stripe session metadata references the user. |
+| 4 | Stripe webhook → n8n | PostgreSQL (`public.subscriptions`) | `Save Subscription` node writes subscription rows keyed by `gtc_user_id`; rejects payloads without the identifier. |
+| 5 | `gtc-auth` entitlement checks | PostgreSQL views/tables | `getLatestEntitlement` reads `v_user_entitlement` or `subscriptions` to gate chat access. |
+
+### Registered User Data Persistence
+
+- **Core profile** — table `public."user"` (columns: `gtc_user_id` serial PK, `created_at` timestamp).
+- **Email credentials** — table `public.auth_email` (columns: `user_id` FK → `gtc_user_id`, `email`, `pwd_hash`, `email_verified`, `created_at`).
+- **Google bindings** — table `public.auth_google` (columns: `user_id` FK, `google_sub`, `email`, `created_at`).
+- **Verification tokens** — table `public.auth_verification` (columns: `token`, `user_id`, `email`, `expires_at`, `used`, `created_at`).
+- **Subscriptions** — table `public.subscriptions` maintained by n8n (`subscription_id`, **`gtc_user_id`**, `stripe_customer_id`, `stripe_subscription_id`, `plan_code`, `status`, `start_date`, `end_date`, `created_at`, `updated_at`, `stripe_price_id`, `stripe_product_id`, `livemode`). The `gtc_user_id` column is NOT NULL and links billing status to the auth profile.
+
+## ✅ Operational Tests
+
+- **Latest run**: `npm test` (Node 18, npm 9)
+- **Command location**: repository root (`~/gtc-form`)
+- **Scope**: executes `srv/gtc-auth/tests/subscription-status.test.js`
+- **Purpose**: validates that entitlement logic recognises subscriptions only when `gtc_user_id` is present with an active (or non-expired trial) status, preventing `NULL` inserts in `public.subscriptions`.
+- **Result summary**:
+
+  ```text
+  ✔ inactive when record is null
+  ✔ inactive when status missing
+  ✔ inactive when status not active
+  ✔ active when status active without end_date
+  ✔ active when not expired
+  ✔ inactive when expired
+  tests 6, pass 6, fail 0, duration_ms ~255
+  ```
+
+Store the console log from production runs alongside deployment notes so that operators can confirm the entitlement checks are guarding against missing `gtc_user_id` values before n8n writes to `public.subscriptions`.
+
 ## 🔐 Access & Identity
 
 - SSH Access via:
