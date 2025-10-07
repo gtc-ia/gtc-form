@@ -123,6 +123,7 @@
     function buildPaymentUrl(userId) {
       const url = new URL(PAYMENT_BASE_URL);
       url.searchParams.set('user_id', userId);
+      url.searchParams.set('gtc_user_id', userId);
       url.searchParams.set('returnTo', PAYMENT_RETURN_PATH);
       return url.toString();
     }
