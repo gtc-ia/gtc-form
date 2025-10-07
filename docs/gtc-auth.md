@@ -123,7 +123,7 @@ request_email_verification → (письмо) → verify
 | Мониторинг systemd | `sudo systemctl status gtc-auth` |
 | Логи сервиса | `sudo journalctl -u gtc-auth -f` |
 | Проверка зависимостей npm | `npm audit --production` (в каталоге `srv/gtc-auth`) |
-| Юнит-тест логики подписок | `npm test` (из корня репозитория; выполняет `node --test srv/gtc-auth/tests/subscription-status.test.js`, свежие логи см. в `Docs/test-results/`) |
+| Юнит-тест логики подписок | `npm test` (из корня репозитория; выполняет `node --test srv/gtc-auth/tests/subscription-status.test.js`) |
 
 ## 9. Деплой и эксплуатация
 

@@ -69,28 +69,6 @@ This document describes the current configuration, software stack, and automatio
 - **Verification tokens** — table `public.auth_verification` (columns: `token`, `user_id`, `email`, `expires_at`, `used`, `created_at`).
 - **Subscriptions** — table `public.subscriptions` maintained by n8n (`subscription_id`, **`gtc_user_id`**, `stripe_customer_id`, `stripe_subscription_id`, `plan_code`, `status`, `start_date`, `end_date`, `created_at`, `updated_at`, `stripe_price_id`, `stripe_product_id`, `livemode`). The `gtc_user_id` column is NOT NULL and links billing status to the auth profile.
 
-## ✅ Operational Tests
-
-- **Latest run**: `npm test` (Node 18, npm 9) — 2025-10-07 08:24 UTC
-- **Command location**: repository root (`~/gtc-form`)
-- **Scope**: executes `srv/gtc-auth/tests/subscription-status.test.js`
-- **Purpose**: validates that entitlement logic recognises subscriptions only when `gtc_user_id` is present with an active (or non-expired trial) status, preventing `NULL` inserts in `public.subscriptions`.
-- **Result summary**:
-
-  ```text
-  ✔ inactive when record is null (2.633324ms)
-  ✔ inactive when status missing (0.417133ms)
-  ✔ inactive when status not active (1.922358ms)
-  ✔ active when status active without end_date (0.36341ms)
-  ✔ active when not expired (0.56712ms)
-  ✔ inactive when expired (6.11618ms)
-  tests 6, suites 0, pass 6, fail 0, duration_ms 285.627545
-  ```
-
-- **Log file**: `Docs/test-results/npm-test-2025-10-07T08-24-55Z.log`
-
-Store the console log from production runs alongside deployment notes so that operators can confirm the entitlement checks are guarding against missing `gtc_user_id` values before n8n writes to `public.subscriptions`. The latest log file listed above can be shared with stakeholders who request explicit evidence of the entitlement test execution.
-
 ## 🔐 Access & Identity
 
 - SSH Access via:
