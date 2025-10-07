@@ -68,6 +68,7 @@ request_email_verification → (письмо) → verify
 | `public.auth_email` | `email` (PK), `user_id`, `pwd_hash`, `email_verified`, `created_at` | Учетная запись с паролем и состоянием подтверждения email. |
 | `public.auth_google` | `google_sub` (PK), `user_id`, `email`, `created_at` | Привязки Google SSO (каждый `sub` и email уникальны). |
 | `public.auth_verification` | `token` (PK), `user_id`, `email`, `expires_at`, `used`, `created_at` | Одноразовые токены подтверждения email (TTL по умолчанию 60 минут). |
+| `public.subscriptions` | `subscription_id` (PK), `gtc_user_id` (NOT NULL), `status`, `start_date`, `end_date`, `stripe_customer_id`, `stripe_subscription_id`, `plan_code`, `stripe_price_id`, `stripe_product_id`, `created_at`, `updated_at`, `livemode` | Записи о подписках, которые создаёт нода n8n «Save Subscription». Используются методом `getLatestEntitlement` для проверки права доступа в чат. |
 
 Дополнительные индексы (`idx_auth_email_user`, `idx_auth_google_user`, `idx_auth_verif_user`) ускоряют запросы по `user_id` при связке профилей и аудите.
 
