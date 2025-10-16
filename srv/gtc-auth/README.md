@@ -93,6 +93,10 @@ Reads `gtc_user_id` from the transient cookie, calls the entitlement RPC, and is
 
 The handler forwards validated `lang` and `next` query parameters to the target.
 
+> **Important:** Entitlement decisions are based exclusively on the PostgREST `subscription_status` RPC. Stripe Customer Portal
+> interactions are only triggered by explicit user actions (for example, `/billing/portal`) and never as part of the post-login
+> flow.
+
 ## systemd unit
 
 The repository includes `systemd/gtc-auth.service`. Deploy it to `/etc/systemd/system/gtc-auth.service` and enable the service:
