@@ -8,6 +8,36 @@ import {
 
 const noopFetch = async () => ({ is_active: true });
 
+test('string flag from RPC still routes active subscribers to chat', async () => {
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ is_active: 't' })
+  });
+  assert.equal(decision.location, 'https://app.gtstor.com/chat/');
+  assert.equal(decision.isActive, true);
+});
+
+test('status + future end_date imply activity when boolean flag missing', async () => {
+  const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ status: 'active', end_date: future })
+  });
+  assert.equal(decision.location, 'https://app.gtstor.com/chat/');
+  assert.equal(decision.isActive, true);
+});
+
+test('expired trial is treated as inactive even if status is trialing', async () => {
+  const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ status: 'trialing', end_date: past })
+  });
+  assert.equal(decision.isActive, false);
+  const url = new URL(decision.location);
+  assert.equal(url.origin, 'https://pay.gtstor.com');
+});
+
 test('buildChatRedirect forwards language hint for active users', async () => {
   const decision = await determinePostAuthRedirect({
     gtcUserId: '3001',
