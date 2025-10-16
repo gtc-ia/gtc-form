@@ -4,6 +4,62 @@ const PAYMENT_PORTAL_URL = process.env.PAYMENT_PORTAL_URL || 'https://pay.gtstor
 const CHAT_REDIRECT_PATH = process.env.CHAT_REDIRECT_PATH || '/chat/';
 const APP_BASE_URL = process.env.APP_BASE_URL || 'https://app.gtstor.com';
 const FORWARDABLE_PARAMS = ['lang', 'next'];
+const ACTIVE_STATUSES = new Set(['active', 'trialing']);
+
+function coerceBoolean(value) {
+  if (value === true) return true;
+  if (value === false) return false;
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return undefined;
+    if (['true', 't', '1', 'yes', 'y'].includes(normalized)) return true;
+    if (['false', 'f', '0', 'no', 'n'].includes(normalized)) return false;
+    return undefined;
+  }
+
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+  }
+
+  return undefined;
+}
+
+function parseEndDate(value) {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return undefined;
+  return date;
+}
+
+function computeStatusActive(status) {
+  if (!status) return false;
+  const normalized = String(status).trim().toLowerCase();
+  return ACTIVE_STATUSES.has(normalized);
+}
+
+function isEntitlementActive(entitlement) {
+  if (!entitlement || typeof entitlement !== 'object') {
+    return false;
+  }
+
+  const coerced = coerceBoolean(entitlement.is_active);
+  if (coerced === true) return true;
+  if (coerced === false) return false;
+
+  const hasActiveStatus = computeStatusActive(entitlement.status);
+  if (!hasActiveStatus) {
+    return false;
+  }
+
+  const endDate = parseEndDate(entitlement.end_date);
+  if (!endDate) {
+    return false;
+  }
+
+  return endDate.getTime() > Date.now();
+}
 
 export function normalizeUserId(value) {
   if (value === undefined || value === null) {
@@ -70,7 +126,7 @@ function applyForwardedParams(url, forwarded) {
 export function buildChatRedirect(forwarded = {}) {
   const url = new URL(CHAT_REDIRECT_PATH, APP_BASE_URL);
   applyForwardedParams(url, forwarded);
-  return `${url.pathname}${url.search}`;
+  return url.toString();
 }
 
 export function buildPaymentRedirect(userId, forwarded = {}) {
@@ -90,7 +146,7 @@ export async function determinePostAuthRedirect({
 
   try {
     const entitlement = await fetchEntitlement(normalizedId);
-    const isActive = entitlement?.is_active === true;
+    const isActive = isEntitlementActive(entitlement);
     const location = isActive ? buildChatRedirect(forwarded) : buildPaymentRedirect(normalizedId, forwarded);
     return { location, isActive, entitlement };
   } catch (error) {
