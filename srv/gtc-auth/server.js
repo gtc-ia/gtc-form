@@ -18,7 +18,7 @@ import {
 } from './db.js';
 import { sendVerificationEmail } from './mail.js';
 import { verifyGoogleCredential } from './google.js';
-import { determinePostAuthRedirect } from './post-auth-redirect.js';
+import { determinePostAuthRedirect, buildPaymentRedirect } from './post-auth-redirect.js';
 
 const PASSWORD_POLICY = {
   minLength: 8,
@@ -130,6 +130,9 @@ app.post('/auth/request_email_verification', async (req, res) => {
   try {
     const row = await getEmailRow(String(email).toLowerCase());
     if (!row) return res.json({ ok: true });
+    if (row.email_verified) {
+      return res.json({ ok: true, already_verified: true });
+    }
     const token = await createVerifyToken(row.user_id, row.email, 60);
     await sendVerificationEmail(row.email, token);
     res.json({ ok: true });
@@ -209,21 +212,51 @@ app.get('/auth/finish', async (req, res) => {
 
   try {
     const decision = await determinePostAuthRedirect({ gtcUserId, query: req.query });
+    const entitlement = decision.entitlement ?? {};
+    const rawEntitlement = decision.rawEntitlement;
+    const logPayload = {
+      gtcUserId,
+      location: decision.location,
+      status: entitlement.status ?? null,
+      end_date: entitlement.end_date ?? null,
+      is_active: entitlement.is_active ?? null,
+      computed_is_active: decision.isActive ?? null,
+      raw_shape: Array.isArray(rawEntitlement)
+        ? 'array'
+        : rawEntitlement && typeof rawEntitlement === 'object'
+          ? 'object'
+          : typeof rawEntitlement
+    };
+
+    if (rawEntitlement && rawEntitlement !== entitlement) {
+      logPayload.raw_sample = Array.isArray(rawEntitlement)
+        ? rawEntitlement.slice(0, 1)
+        : rawEntitlement;
+    }
+
     if (decision.error) {
-      const logPayload = {
-        message: decision.error.message,
-        name: decision.error.name,
-        status: decision.error.status,
-        gtcUserId
-      };
-      console.error('Entitlement RPC failed', logPayload);
+      console.error('Entitlement RPC failed', {
+        ...logPayload,
+        error: {
+          message: decision.error.message,
+          name: decision.error.name,
+          status: decision.error.status
+        }
+      });
+    } else {
+      console.info('Post-auth redirect decision', logPayload);
     }
     clearPostAuthCookie(res);
     return res.redirect(302, decision.location);
   } catch (error) {
-    console.error('Post-auth redirect error', { gtcUserId, error });
+    const fallback = buildPaymentRedirect(String(gtcUserId));
+    console.error('Post-auth redirect error', {
+      gtcUserId,
+      error,
+      location: fallback
+    });
     clearPostAuthCookie(res);
-    return res.redirect(302, '/auth/');
+    return res.redirect(302, fallback);
   }
 });
 

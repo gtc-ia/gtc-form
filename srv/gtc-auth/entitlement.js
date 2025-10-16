@@ -1,7 +1,22 @@
+import nodeFetch from 'node-fetch';
+
 const DEFAULT_RPC_URL = process.env.ENTITLEMENT_RPC_URL || 'https://app.gtstor.com/api/rpc/subscription_status';
 const DEFAULT_TIMEOUT_MS = Number.parseInt(process.env.ENTITLEMENT_TIMEOUT_MS ?? '', 10);
 const RPC_TIMEOUT_MS = Number.isFinite(DEFAULT_TIMEOUT_MS) && DEFAULT_TIMEOUT_MS > 0 ? DEFAULT_TIMEOUT_MS : 2500;
 const USER_ID_FIELD = process.env.ENTITLEMENT_RPC_USER_FIELD || 'p_gtc_user_id';
+
+const fallbackFetchRef = { current: nodeFetch };
+
+export function setEntitlementFallbackFetch(fetchFn) {
+  if (typeof fetchFn !== 'function') {
+    throw new TypeError('fallback_fetch_must_be_function');
+  }
+  fallbackFetchRef.current = fetchFn;
+}
+
+export function getEntitlementFallbackFetch() {
+  return fallbackFetchRef.current;
+}
 
 function normalizeUserIdForRpc(value) {
   if (value === undefined || value === null) {
@@ -14,9 +29,19 @@ function normalizeUserIdForRpc(value) {
   return numeric;
 }
 
-export async function fetchSubscriptionStatus(gtcUserId, { fetchImpl = globalThis.fetch } = {}) {
+function resolveFetch(fetchImpl) {
+  if (typeof fetchImpl === 'function') {
+    return fetchImpl;
+  }
+  if (typeof globalThis.fetch === 'function') {
+    return globalThis.fetch;
+  }
+  return fallbackFetchRef.current;
+}
+
+export async function fetchSubscriptionStatus(gtcUserId, { fetchImpl } = {}) {
   if (typeof fetchImpl !== 'function') {
-    throw new TypeError('fetchImpl must be a function');
+    fetchImpl = resolveFetch(fetchImpl);
   }
 
   const normalizedId = normalizeUserIdForRpc(gtcUserId);
