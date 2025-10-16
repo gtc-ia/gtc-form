@@ -218,8 +218,7 @@ app.get('/auth/finish', async (req, res) => {
       location: decision.location,
       status: entitlement.status ?? null,
       end_date: entitlement.end_date ?? null,
-      is_active: entitlement.is_active ?? null,
-      computed_is_active: decision.isActive ?? null
+      is_active: entitlement.is_active ?? null
     };
 
     if (decision.error) {
