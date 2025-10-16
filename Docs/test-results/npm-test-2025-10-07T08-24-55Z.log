@@ -1,0 +1,23 @@
+npm test (Node.js 18) — 2025-10-07 08:24:55 UTC
+Command: npm test
+Working directory: /workspace/gtc-form
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> gtc-form@1.0.0 test
+> node --test srv/gtc-auth/tests/subscription-status.test.js
+
+✔ inactive when record is null (2.633324ms)
+✔ inactive when status missing (0.417133ms)
+✔ inactive when status not active (1.922358ms)
+✔ active when status active without end_date (0.36341ms)
+✔ active when not expired (0.56712ms)
+✔ inactive when expired (6.11618ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 285.627545

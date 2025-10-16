@@ -1,0 +1,16 @@
+[Unit]
+Description=GTC Auth Service
+After=network.target
+
+[Service]
+WorkingDirectory=/srv/gtc-auth
+Environment=NODE_ENV=production
+EnvironmentFile=/srv/gtc-auth/.env
+ExecStart=/usr/bin/node /srv/gtc-auth/server.js
+Restart=always
+RestartSec=3
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target
