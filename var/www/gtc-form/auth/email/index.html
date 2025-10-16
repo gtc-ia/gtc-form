@@ -329,9 +329,9 @@
       return response.json();
     }
 
-    async function redirectAfterEntitlementCheck(userId) {
-      const targetUrl = await determineSubscriptionRedirect(userId);
-      window.location.href = targetUrl;
+    function redirectToFinish() {
+      const query = window.location.search || '';
+      window.location.href = `/auth/finish${query}`;
     }
 
     emailForm.addEventListener('submit', async (event) => {
@@ -371,16 +371,11 @@
       setLoading(true);
       try {
         const data = await postJSON('/auth/login', { email: currentEmail, password });
-        const userId = String(data.gtc_user_id);
-        localStorage.setItem('gtc_user_id', userId);
+        localStorage.setItem('gtc_user_id', String(data.gtc_user_id));
         localStorage.setItem('email', data.email);
-        await redirectAfterEntitlementCheck(userId);
+        redirectToFinish();
         return;
       } catch (error) {
-        if (error.message === 'subscription_check_failed') {
-          showError(signinError, 'We were unable to confirm your subscription status. Please try again.');
-          return;
-        }
         if (error.status === 401) {
           showError(signinError, 'Invalid email or password.');
         } else if (error.status === 403 && error.body?.code === 'email_not_verified') {

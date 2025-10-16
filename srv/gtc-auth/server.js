@@ -14,12 +14,11 @@ import {
   useVerifyToken,
   setEmailVerified,
   getGoogleBySub,
-  createGoogleUser,
-  getLatestEntitlement,
-  isEntitlementActive
+  createGoogleUser
 } from './db.js';
 import { sendVerificationEmail } from './mail.js';
 import { verifyGoogleCredential } from './google.js';
+import { determinePostAuthRedirect } from './post-auth-redirect.js';
 
 const PASSWORD_POLICY = {
   minLength: 8,
@@ -43,6 +42,33 @@ const app = express();
 app.use(helmet());
 app.use(express.json({ limit: '256kb' }));
 app.use(cookieParser());
+const POST_AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'gtc_post_auth';
+const AUTH_COOKIE_DOMAIN = process.env.AUTH_COOKIE_DOMAIN || undefined;
+const AUTH_COOKIE_MAX_AGE_MS = Number.parseInt(process.env.AUTH_COOKIE_MAX_AGE_MS ?? '', 10);
+const POST_AUTH_COOKIE_MAX_AGE = Number.isFinite(AUTH_COOKIE_MAX_AGE_MS) && AUTH_COOKIE_MAX_AGE_MS > 0 ? AUTH_COOKIE_MAX_AGE_MS : 10 * 60 * 1000;
+const baseCookieOptions = {
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: process.env.AUTH_COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
+  path: '/auth',
+  maxAge: POST_AUTH_COOKIE_MAX_AGE
+};
+if (AUTH_COOKIE_DOMAIN) {
+  baseCookieOptions.domain = AUTH_COOKIE_DOMAIN;
+}
+const POST_AUTH_COOKIE_OPTIONS = Object.freeze(baseCookieOptions);
+
+function issuePostAuthCookie(res, gtcUserId) {
+  if (!gtcUserId) return;
+  const value = String(gtcUserId);
+  res.cookie(POST_AUTH_COOKIE_NAME, value, POST_AUTH_COOKIE_OPTIONS);
+}
+
+function clearPostAuthCookie(res) {
+  const clearOptions = { ...POST_AUTH_COOKIE_OPTIONS };
+  delete clearOptions.maxAge;
+  res.clearCookie(POST_AUTH_COOKIE_NAME, clearOptions);
+}
 const origins = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 app.use(
   cors({
@@ -119,6 +145,7 @@ app.post('/auth/verify', async (req, res) => {
     const used = await useVerifyToken(token);
     if (!used) return res.status(400).json({ code: 'invalid_or_expired' });
     await setEmailVerified(used.user_id, used.email);
+    issuePostAuthCookie(res, used.user_id);
     res.json({ gtc_user_id: used.user_id, email: used.email, verified: true });
   } catch (e) {
     res.status(500).json({ code: 'server_error' });
@@ -135,6 +162,7 @@ app.post('/auth/login', async (req, res) => {
     if (!ok) return res.status(401).json({ code: 'invalid_credentials' });
     if (!row.email_verified) return res.status(403).json({ code: 'email_not_verified' });
     const u = await getUserByEmail(row.email);
+    issuePostAuthCookie(res, u.gtc_user_id);
     res.json({ gtc_user_id: u.gtc_user_id, email: row.email });
   } catch (e) {
     res.status(500).json({ code: 'server_error' });
@@ -148,7 +176,10 @@ app.post('/auth/google', async (req, res) => {
     const { email, sub } = await verifyGoogleCredential(google_credential);
 
     const g = await getGoogleBySub(sub);
-    if (g) return res.json({ gtc_user_id: g.gtc_user_id, email: g.email });
+    if (g) {
+      issuePostAuthCookie(res, g.gtc_user_id);
+      return res.json({ gtc_user_id: g.gtc_user_id, email: g.email });
+    }
 
     const row = await getEmailRow(email);
     if (row && row.email_verified) {
@@ -156,44 +187,43 @@ app.post('/auth/google', async (req, res) => {
         'INSERT INTO public.auth_google(user_id,email,google_sub) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',
         [row.user_id, email, sub]
       );
+      issuePostAuthCookie(res, row.user_id);
       return res.json({ gtc_user_id: row.user_id, email });
     }
 
     const newId = await createGoogleUser(email, sub);
+    issuePostAuthCookie(res, newId);
     return res.json({ gtc_user_id: newId, email });
   } catch (e) {
     res.status(401).json({ code: 'invalid_google_token' });
   }
 });
 
-app.get('/auth/subscription_status', async (req, res) => {
-  const { gtc_user_id: rawId } = req.query || {};
-  if (!rawId) return res.status(400).json({ code: 'bad_request' });
-
-  const trimmed = String(rawId).trim();
-  if (!trimmed) return res.status(400).json({ code: 'bad_request' });
+app.get('/auth/finish', async (req, res) => {
+  const gtcUserId = req.cookies?.[POST_AUTH_COOKIE_NAME];
+  if (!gtcUserId) {
+    console.warn({ path: req.originalUrl }, 'Missing gtc_user_id after auth');
+    clearPostAuthCookie(res);
+    return res.redirect(302, '/auth/');
+  }
 
   try {
-    const entitlement = await getLatestEntitlement(trimmed);
-    if (!entitlement) {
-      return res.json({ active: false, status: null, expires_at: null });
+    const decision = await determinePostAuthRedirect({ gtcUserId, query: req.query });
+    if (decision.error) {
+      const logPayload = {
+        message: decision.error.message,
+        name: decision.error.name,
+        status: decision.error.status,
+        gtcUserId
+      };
+      console.error('Entitlement RPC failed', logPayload);
     }
-
-    const active = isEntitlementActive(entitlement);
-    const payload = {
-      active,
-      status: entitlement.status ?? null,
-      expires_at: entitlement.end_date ?? null
-    };
-
-    if (Object.prototype.hasOwnProperty.call(entitlement, 'livemode')) {
-      payload.livemode = entitlement.livemode;
-    }
-
-    res.json(payload);
+    clearPostAuthCookie(res);
+    return res.redirect(302, decision.location);
   } catch (error) {
-    console.error('subscription_status error', error);
-    res.status(500).json({ code: 'server_error' });
+    console.error('Post-auth redirect error', { gtcUserId, error });
+    clearPostAuthCookie(res);
+    return res.redirect(302, '/auth/');
   }
 });
 

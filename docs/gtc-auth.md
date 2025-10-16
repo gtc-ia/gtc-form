@@ -32,6 +32,7 @@
 3. `POST /auth/request_email_verification` — повторная отправка письма (опционально).
 4. Пользователь переходит по ссылке из письма (`/verify?token=UUID` на клиенте), который затем вызывает `POST /auth/verify`.
 5. `POST /auth/login` — вход возможен только после подтверждения email.
+6. Клиент перенаправляется на `/auth/finish`, где бэкенд выполняет RPC `subscription_status` и решает, куда отправить пользователя (чат или платёжка).
 
 ### 2.2 Вход через Google
 
@@ -39,6 +40,7 @@
 2. `POST /auth/google` отправляет credential в сервис.
 3. `verifyGoogleCredential` валидирует токен и извлекает поля `email` и `sub`.
 4. Если `sub` уже известен — возвращается существующий пользователь; иначе email связывается с новым или уже подтверждённым пользователем.
+5. После успешного ответа фронт редиректит на `/auth/finish` для проверки подписки через RPC.
 
 ## 3. Последовательности запросов (для интеграторов)
 
@@ -68,7 +70,7 @@ request_email_verification → (письмо) → verify
 | `public.auth_email` | `email` (PK), `user_id`, `pwd_hash`, `email_verified`, `created_at` | Учетная запись с паролем и состоянием подтверждения email. |
 | `public.auth_google` | `google_sub` (PK), `user_id`, `email`, `created_at` | Привязки Google SSO (каждый `sub` и email уникальны). |
 | `public.auth_verification` | `token` (PK), `user_id`, `email`, `expires_at`, `used`, `created_at` | Одноразовые токены подтверждения email (TTL по умолчанию 60 минут). |
-| `public.subscriptions` | `subscription_id` (PK), `gtc_user_id` (NOT NULL), `status`, `start_date`, `end_date`, `stripe_customer_id`, `stripe_subscription_id`, `plan_code`, `stripe_price_id`, `stripe_product_id`, `created_at`, `updated_at`, `livemode` | Записи о подписках, которые создаёт нода n8n «Save Subscription». Используются методом `getLatestEntitlement` для проверки права доступа в чат. |
+| `public.subscriptions` | `subscription_id` (PK), `gtc_user_id` (NOT NULL), `status`, `start_date`, `end_date`, `stripe_customer_id`, `stripe_subscription_id`, `plan_code`, `stripe_price_id`, `stripe_product_id`, `created_at`, `updated_at`, `livemode` | Записи о подписках, которые создаёт нода n8n «Save Subscription». Используются RPC `subscription_status` (через `fetchSubscriptionStatus`) для проверки права доступа в чат. |
 
 Дополнительные индексы (`idx_auth_email_user`, `idx_auth_google_user`, `idx_auth_verif_user`) ускоряют запросы по `user_id` при связке профилей и аудите.
 
@@ -123,7 +125,7 @@ request_email_verification → (письмо) → verify
 | Мониторинг systemd | `sudo systemctl status gtc-auth` |
 | Логи сервиса | `sudo journalctl -u gtc-auth -f` |
 | Проверка зависимостей npm | `npm audit --production` (в каталоге `srv/gtc-auth`) |
-| Юнит-тест логики подписок | `npm test` (из корня репозитория; выполняет `node --test srv/gtc-auth/tests/subscription-status.test.js`) |
+| Юнит-тест ветвления пост-авторизации | `node --test srv/gtc-auth/tests/post-auth-redirect.test.mjs` |
 
 ## 9. Деплой и эксплуатация
 

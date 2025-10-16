@@ -170,9 +170,9 @@
       return response.json();
     }
 
-    async function redirectAfterEntitlementCheck(userId) {
-      const targetUrl = await determineSubscriptionRedirect(userId);
-      window.location.href = targetUrl;
+    function redirectToFinish() {
+      const query = window.location.search || '';
+      window.location.href = `/auth/finish${query}`;
     }
 
     function getTokenFromQuery() {
@@ -212,16 +212,9 @@
       }
 
       continueButton.disabled = true;
-      showStatus('Checking your subscription status...', 'success');
+      showStatus('Redirecting you to your workspace...', 'success');
       loadingIndicator.hidden = false;
-
-      try {
-        await redirectAfterEntitlementCheck(storedUserId);
-      } catch (error) {
-        continueButton.disabled = false;
-        loadingIndicator.hidden = true;
-        showStatus('We could not confirm your subscription status. Please try again.', 'error');
-      }
+      redirectToFinish();
     });
 
     verifyEmail();
