@@ -91,13 +91,17 @@
 
   <script src="/gtc-config.js"></script>
   <script type="module">
-    import { determineSubscriptionRedirect } from '../shared/subscription.mjs';
     const runtimeConfig = window.__GTC_CONFIG ?? {};
     const errorBox = document.getElementById('error');
 
     function showError(message) {
       errorBox.textContent = message;
       errorBox.hidden = !message;
+    }
+
+    function redirectToFinish() {
+      const query = window.location.search || '';
+      window.location.href = `/auth/finish${query}`;
     }
 
     async function postJSON(url, payload) {
@@ -118,11 +122,6 @@
       return response.json();
     }
 
-    async function redirectAfterEntitlementCheck(userId) {
-      const targetUrl = await determineSubscriptionRedirect(userId);
-      window.location.href = targetUrl;
-    }
-
     function handleCredentialResponse(response) {
       showError('');
       const credential = response.credential;
@@ -132,16 +131,11 @@
       }
       postJSON('/auth/google', { google_credential: credential })
         .then(async (data) => {
-          const userId = String(data.gtc_user_id);
-          localStorage.setItem('gtc_user_id', userId);
+          localStorage.setItem('gtc_user_id', String(data.gtc_user_id));
           localStorage.setItem('email', data.email);
-          await redirectAfterEntitlementCheck(userId);
+          redirectToFinish();
         })
         .catch((error) => {
-          if (error.message === 'subscription_check_failed') {
-            showError('We were unable to confirm your subscription status. Please try again.');
-            return;
-          }
           if (error.body?.code === 'email_not_verified') {
             showError('Your email is not verified yet. Please verify before continuing.');
           } else if (error.status === 401) {
