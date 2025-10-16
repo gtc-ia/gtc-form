@@ -17,6 +17,16 @@ test('string flag from RPC still routes active subscribers to chat', async () =>
   assert.equal(decision.isActive, true);
 });
 
+test('rawEntitlement mirrors the RPC payload for downstream logging', async () => {
+  const entitlement = { is_active: true, status: 'active' };
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => entitlement
+  });
+  assert.equal(decision.entitlement, entitlement);
+  assert.equal(decision.rawEntitlement, entitlement);
+});
+
 test('status + future end_date imply activity when boolean flag missing', async () => {
   const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const decision = await determinePostAuthRedirect({
