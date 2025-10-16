@@ -130,6 +130,9 @@ app.post('/auth/request_email_verification', async (req, res) => {
   try {
     const row = await getEmailRow(String(email).toLowerCase());
     if (!row) return res.json({ ok: true });
+    if (row.email_verified) {
+      return res.json({ ok: true, already_verified: true });
+    }
     const token = await createVerifyToken(row.user_id, row.email, 60);
     await sendVerificationEmail(row.email, token);
     res.json({ ok: true });

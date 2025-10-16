@@ -29,10 +29,12 @@
 
 1. `POST /auth/check_email` — проверка занятости адреса.
 2. `POST /auth/register` — регистрация: создаётся пользователь, хэш пароля (`bcrypt` c 12 раундами по умолчанию) и запись в `auth_email`.
-3. `POST /auth/request_email_verification` — повторная отправка письма (опционально).
+3. `POST /auth/request_email_verification` — повторная отправка письма (опционально, только для неподтверждённых адресов).
 4. Пользователь переходит по ссылке из письма (`/verify?token=UUID` на клиенте), который затем вызывает `POST /auth/verify`.
 5. `POST /auth/login` — вход возможен только после подтверждения email.
-6. Клиент перенаправляется на `/auth/finish`, где бэкенд выполняет RPC `subscription_status` и решает, куда отправить пользователя (чат или платёжка).
+6. Клиент перенаправляется на `/auth/finish`, где бэкенд выполняет RPC `subscription_status` и решает, куда отправить пользователя (на `https://app.gtstor.com/chat/` или на платёжку).
+
+> После логина решение принимается **только** на основе RPC в GTC DB; автоматические переходы в Stripe Customer Portal запрещены.
 
 > После логина решение принимается **только** на основе RPC в GTC DB; автоматические переходы в Stripe Customer Portal запрещены.
 
@@ -59,6 +61,8 @@ check_email → register → (письмо) → verify → login
 ```text
 request_email_verification → (письмо) → verify
 ```
+
+> Если email уже подтверждён, сервис возвращает `{ "ok": true, "already_verified": true }` и письмо повторно не отправляется.
 
 ### Авторизация через Google
 

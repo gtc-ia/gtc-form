@@ -69,7 +69,7 @@ Response: `{ "queued_verification": true, "email": "user@example.com" }`
 
 ### `POST /auth/request_email_verification`
 Request body: `{ "email": "user@example.com" }`
-Response: `{ "ok": true }`
+Response: `{ "ok": true }` (adds `already_verified: true` when the email was confirmed earlier)
 
 ### `POST /auth/verify`
 Request body: `{ "token": "UUID" }`
@@ -88,7 +88,7 @@ Successful auth responses also set an HTTP-only cookie (see `AUTH_COOKIE_*`). Cl
 ### `GET /auth/finish`
 Reads `gtc_user_id` from the transient cookie, calls the entitlement RPC, and issues a `302` redirect:
 
-- Active subscription (`is_active === true`) → `/chat/`
+- Active subscription (`is_active === true`) → `https://app.gtstor.com/chat/`
 - Missing/expired subscription or RPC failure → `https://pay.gtstor.com/payment.php?user_id=<gtc_user_id>`
 
 The handler forwards validated `lang` and `next` query parameters to the target.

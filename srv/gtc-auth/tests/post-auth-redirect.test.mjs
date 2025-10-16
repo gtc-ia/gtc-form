@@ -14,7 +14,7 @@ test('buildChatRedirect forwards language hint for active users', async () => {
     query: { lang: 'ru' },
     fetchEntitlement: noopFetch
   });
-  assert.equal(decision.location, '/chat/?lang=ru');
+  assert.equal(decision.location, 'https://app.gtstor.com/chat/?lang=ru');
   assert.equal(decision.isActive, true);
 });
 
@@ -50,7 +50,7 @@ test('unsafe next parameters are ignored', async () => {
     query: { next: 'https://evil.example.com', lang: 'en-US' },
     fetchEntitlement: noopFetch
   });
-  const url = new URL(decision.location, 'https://app.gtstor.com');
+  const url = new URL(decision.location);
   assert.equal(url.searchParams.get('lang'), 'en-US');
   assert.equal(url.searchParams.has('next'), false);
 });
