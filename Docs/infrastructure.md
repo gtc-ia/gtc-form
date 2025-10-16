@@ -107,6 +107,7 @@ sudo systemctl restart n8n
   - Installs dependencies with `npm ci`
   - Stages the `Client/gtc-form` and `assets` directories
   - Syncs the bundle into `/var/www/gtc-form` using `rsync --delete`
+  - Stages `srv/gtc-auth`, installs production dependencies on the server and restarts the `gtc-auth` systemd unit
 - Run on GTC1 after pulling the latest changes:
 
   ```bash

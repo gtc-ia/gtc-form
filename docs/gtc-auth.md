@@ -29,10 +29,12 @@
 
 1. `POST /auth/check_email` — проверка занятости адреса.
 2. `POST /auth/register` — регистрация: создаётся пользователь, хэш пароля (`bcrypt` c 12 раундами по умолчанию) и запись в `auth_email`.
-3. `POST /auth/request_email_verification` — повторная отправка письма (опционально).
+3. `POST /auth/request_email_verification` — повторная отправка письма (опционально, только для неподтверждённых адресов).
 4. Пользователь переходит по ссылке из письма (`/verify?token=UUID` на клиенте), который затем вызывает `POST /auth/verify`.
 5. `POST /auth/login` — вход возможен только после подтверждения email.
-6. Клиент перенаправляется на `/auth/finish`, где бэкенд выполняет RPC `subscription_status` и решает, куда отправить пользователя (чат или платёжка).
+6. Клиент перенаправляется на `/auth/finish`, где бэкенд выполняет RPC `subscription_status` и решает, куда отправить пользователя (на `https://app.gtstor.com/chat/` или на платёжку). Активность определяется по флагу `is_active` либо, при его отсутствии, через проверку `status` и будущей `end_date`.
+
+> После логина решение принимается **только** на основе RPC в GTC DB; автоматические переходы в Stripe Customer Portal запрещены.
 
 ### 2.2 Вход через Google
 
@@ -41,6 +43,8 @@
 3. `verifyGoogleCredential` валидирует токен и извлекает поля `email` и `sub`.
 4. Если `sub` уже известен — возвращается существующий пользователь; иначе email связывается с новым или уже подтверждённым пользователем.
 5. После успешного ответа фронт редиректит на `/auth/finish` для проверки подписки через RPC.
+
+> Управление подпиской через Stripe доступно лишь по явному запросу пользователя (например, кнопка «Manage subscription») и не участвует в пост-логине.
 
 ## 3. Последовательности запросов (для интеграторов)
 
@@ -55,6 +59,8 @@ check_email → register → (письмо) → verify → login
 ```text
 request_email_verification → (письмо) → verify
 ```
+
+> Если email уже подтверждён, сервис возвращает `{ "ok": true, "already_verified": true }` и письмо повторно не отправляется.
 
 ### Авторизация через Google
 
@@ -71,6 +77,8 @@ request_email_verification → (письмо) → verify
 | `public.auth_google` | `google_sub` (PK), `user_id`, `email`, `created_at` | Привязки Google SSO (каждый `sub` и email уникальны). |
 | `public.auth_verification` | `token` (PK), `user_id`, `email`, `expires_at`, `used`, `created_at` | Одноразовые токены подтверждения email (TTL по умолчанию 60 минут). |
 | `public.subscriptions` | `subscription_id` (PK), `gtc_user_id` (NOT NULL), `status`, `start_date`, `end_date`, `stripe_customer_id`, `stripe_subscription_id`, `plan_code`, `stripe_price_id`, `stripe_product_id`, `created_at`, `updated_at`, `livemode` | Записи о подписках, которые создаёт нода n8n «Save Subscription». Используются RPC `subscription_status` (через `fetchSubscriptionStatus`) для проверки права доступа в чат. |
+
+> `fetchSubscriptionStatus` всегда вызывает RPC через серверный HTTP-клиент: при отсутствии глобального `fetch` в рантайме Node.js используется встроенный `node-fetch` полифилл, поэтому проверка подписки не зависит от версии Node или наличия браузерных API.
 
 Дополнительные индексы (`idx_auth_email_user`, `idx_auth_google_user`, `idx_auth_verif_user`) ускоряют запросы по `user_id` при связке профилей и аудите.
 
@@ -137,6 +145,8 @@ request_email_verification → (письмо) → verify
 6. Мониторить `GET /auth/healthz` и ключевые метрики (скорость отправки писем, ошибки БД).
 
 Для обновления используйте стандартный pipeline: `git pull` → `npm ci` → `systemctl restart gtc-auth`. Перед рестартом убедитесь, что нет активных миграций или зависших писем.
+
+> **Автоматизация.** GitHub Actions запускает `deploy.sh`, который синхронизирует каталог `/srv/gtc-auth`, устанавливает production-зависимости (`npm ci --omit=dev`) и выполняет `systemctl restart gtc-auth`. Убедитесь, что на сервере присутствуют `npm`, `node` и `systemctl`, иначе шаг завершится с ошибкой и задеплоить изменения не получится.
 
 ## 10. Контрольная информация для безопасности
 
