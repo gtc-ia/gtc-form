@@ -70,7 +70,7 @@ function applyForwardedParams(url, forwarded) {
 export function buildChatRedirect(forwarded = {}) {
   const url = new URL(CHAT_REDIRECT_PATH, APP_BASE_URL);
   applyForwardedParams(url, forwarded);
-  return `${url.pathname}${url.search}`;
+  return url.toString();
 }
 
 export function buildPaymentRedirect(userId, forwarded = {}) {
