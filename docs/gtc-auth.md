@@ -80,6 +80,8 @@ request_email_verification → (письмо) → verify
 | `public.auth_verification` | `token` (PK), `user_id`, `email`, `expires_at`, `used`, `created_at` | Одноразовые токены подтверждения email (TTL по умолчанию 60 минут). |
 | `public.subscriptions` | `subscription_id` (PK), `gtc_user_id` (NOT NULL), `status`, `start_date`, `end_date`, `stripe_customer_id`, `stripe_subscription_id`, `plan_code`, `stripe_price_id`, `stripe_product_id`, `created_at`, `updated_at`, `livemode` | Записи о подписках, которые создаёт нода n8n «Save Subscription». Используются RPC `subscription_status` (через `fetchSubscriptionStatus`) для проверки права доступа в чат. |
 
+> `fetchSubscriptionStatus` всегда вызывает RPC через серверный HTTP-клиент: при отсутствии глобального `fetch` в рантайме Node.js используется встроенный `node-fetch` полифилл, поэтому проверка подписки не зависит от версии Node или наличия браузерных API.
+
 Дополнительные индексы (`idx_auth_email_user`, `idx_auth_google_user`, `idx_auth_verif_user`) ускоряют запросы по `user_id` при связке профилей и аудите.
 
 ## 5. Обработка ошибок
