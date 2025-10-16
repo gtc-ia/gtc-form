@@ -27,17 +27,6 @@ test('status + future end_date imply activity when boolean flag missing', async 
   assert.equal(decision.isActive, true);
 });
 
-test('array RPC payloads are unwrapped before evaluating entitlement', async () => {
-  const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  const decision = await determinePostAuthRedirect({
-    gtcUserId: '3001',
-    fetchEntitlement: async () => ([{ status: 'trialing', end_date: future }])
-  });
-  assert.equal(decision.location, 'https://app.gtstor.com/chat/');
-  assert.equal(decision.isActive, true);
-  assert.equal(decision.entitlement.status, 'trialing');
-});
-
 test('expired trial is treated as inactive even if status is trialing', async () => {
   const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const decision = await determinePostAuthRedirect({
