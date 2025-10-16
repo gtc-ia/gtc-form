@@ -88,15 +88,10 @@ Successful auth responses also set an HTTP-only cookie (see `AUTH_COOKIE_*`). Cl
 ### `GET /auth/finish`
 Reads `gtc_user_id` from the transient cookie, calls the entitlement RPC, and issues a `302` redirect:
 
-- Active subscription (`is_active` truthy **или** `status IN ('active','trialing')` с `end_date` в будущем) → `https://app.gtstor.com/chat/`
+- Active subscription (`is_active === true`) → `https://app.gtstor.com/chat/`
 - Missing/expired subscription or RPC failure → `https://pay.gtstor.com/payment.php?user_id=<gtc_user_id>`
 
 The handler forwards validated `lang` and `next` query parameters to the target.
-
-> **Note:** Some PostgREST deployments wrap function results in single-element arrays or envelope objects. The redirect helper
-> unwraps those shapes before evaluating the entitlement, and logs the original payload shape for troubleshooting.
-
-> **Compatibility:** Entitlement RPC calls always use a server-side HTTP client. When the runtime lacks a native `fetch` (например, Node.js 16 LTS), the service automatically falls back to `node-fetch`, so active subscribers are never misrouted to the payment form because of platform limitations.
 
 > **Important:** Entitlement decisions are based exclusively on the PostgREST `subscription_status` RPC. Stripe Customer Portal
 > interactions are only triggered by explicit user actions (for example, `/billing/portal`) and never as part of the post-login

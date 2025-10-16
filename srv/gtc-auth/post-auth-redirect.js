@@ -6,38 +6,6 @@ const APP_BASE_URL = process.env.APP_BASE_URL || 'https://app.gtstor.com';
 const FORWARDABLE_PARAMS = ['lang', 'next'];
 const ACTIVE_STATUSES = new Set(['active', 'trialing']);
 
-function unwrapEntitlementPayload(payload) {
-  if (!payload) {
-    return undefined;
-  }
-
-  if (Array.isArray(payload)) {
-    for (const entry of payload) {
-      const unwrapped = unwrapEntitlementPayload(entry);
-      if (unwrapped && typeof unwrapped === 'object' && !Array.isArray(unwrapped)) {
-        return unwrapped;
-      }
-    }
-    return undefined;
-  }
-
-  if (typeof payload === 'object') {
-    const keys = Object.keys(payload);
-    if (keys.length === 1) {
-      const nested = payload[keys[0]];
-      if (nested && (typeof nested === 'object' || Array.isArray(nested))) {
-        const unwrapped = unwrapEntitlementPayload(nested);
-        if (unwrapped && typeof unwrapped === 'object' && !Array.isArray(unwrapped)) {
-          return unwrapped;
-        }
-      }
-    }
-    return payload;
-  }
-
-  return undefined;
-}
-
 function coerceBoolean(value) {
   if (value === true) return true;
   if (value === false) return false;
@@ -177,8 +145,7 @@ export async function determinePostAuthRedirect({
   const forwarded = extractForwardableParams(query);
 
   try {
-    const rawEntitlement = await fetchEntitlement(normalizedId);
-    const entitlement = unwrapEntitlementPayload(rawEntitlement);
+    const entitlement = await fetchEntitlement(normalizedId);
     const isActive = isEntitlementActive(entitlement);
     const location = isActive ? buildChatRedirect(forwarded) : buildPaymentRedirect(normalizedId, forwarded);
     return { location, isActive, entitlement, rawEntitlement };

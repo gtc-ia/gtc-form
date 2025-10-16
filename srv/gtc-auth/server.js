@@ -213,26 +213,13 @@ app.get('/auth/finish', async (req, res) => {
   try {
     const decision = await determinePostAuthRedirect({ gtcUserId, query: req.query });
     const entitlement = decision.entitlement ?? {};
-    const rawEntitlement = decision.rawEntitlement;
     const logPayload = {
       gtcUserId,
       location: decision.location,
       status: entitlement.status ?? null,
       end_date: entitlement.end_date ?? null,
-      is_active: entitlement.is_active ?? null,
-      computed_is_active: decision.isActive ?? null,
-      raw_shape: Array.isArray(rawEntitlement)
-        ? 'array'
-        : rawEntitlement && typeof rawEntitlement === 'object'
-          ? 'object'
-          : typeof rawEntitlement
+      is_active: entitlement.is_active ?? null
     };
-
-    if (rawEntitlement && rawEntitlement !== entitlement) {
-      logPayload.raw_sample = Array.isArray(rawEntitlement)
-        ? rawEntitlement.slice(0, 1)
-        : rawEntitlement;
-    }
 
     if (decision.error) {
       console.error('Entitlement RPC failed', {
