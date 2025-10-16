@@ -148,7 +148,7 @@ export async function determinePostAuthRedirect({
     const entitlement = await fetchEntitlement(normalizedId);
     const isActive = isEntitlementActive(entitlement);
     const location = isActive ? buildChatRedirect(forwarded) : buildPaymentRedirect(normalizedId, forwarded);
-    return { location, isActive, entitlement };
+    return { location, isActive, entitlement, rawEntitlement };
   } catch (error) {
     const fallback = buildPaymentRedirect(normalizedId, forwarded);
     return { location: fallback, error };
