@@ -17,7 +17,7 @@ test('string flag from SQL still routes active subscribers to chat', async () =>
   assert.equal(decision.isActive, true);
 });
 
-test('rawEntitlement mirrors the subscription payload for downstream logging', async () => {
+test('rawEntitlement mirrors the RPC payload for downstream logging', async () => {
   const entitlement = { is_active: true, status: 'active' };
   const decision = await determinePostAuthRedirect({
     gtcUserId: '3001',
