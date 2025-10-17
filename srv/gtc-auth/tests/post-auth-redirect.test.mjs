@@ -155,3 +155,21 @@ test('extractForwardableParams trims and validates values', () => {
   const forwarded = extractForwardableParams({ lang: '  ru-RU  ', next: '/chat/history ' });
   assert.deepEqual(forwarded, { lang: 'ru-RU', next: '/chat/history' });
 });
+
+test('determinePostAuthRedirect forwards the logger to entitlement lookups', async () => {
+  const logger = { info() {}, warn() {}, error() {} };
+  let receivedOptions;
+
+  await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    logger,
+    fetchEntitlement: async (id, options) => {
+      assert.equal(id, '3001');
+      receivedOptions = options;
+      return { is_active: true };
+    }
+  });
+
+  assert.ok(receivedOptions);
+  assert.equal(receivedOptions.logger, logger);
+});

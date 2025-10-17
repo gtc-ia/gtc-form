@@ -211,7 +211,11 @@ app.get('/auth/finish', async (req, res) => {
   }
 
   try {
-    const decision = await determinePostAuthRedirect({ gtcUserId, query: req.query });
+    const decision = await determinePostAuthRedirect({
+      gtcUserId,
+      query: req.query,
+      logger: console
+    });
     const entitlement = decision.entitlement ?? {};
     const logPayload = {
       gtcUserId,

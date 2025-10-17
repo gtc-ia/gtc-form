@@ -167,7 +167,8 @@ function anonymizeEmailsForLog(emails = []) {
 export async function determinePostAuthRedirect({
   gtcUserId,
   query = {},
-  fetchEntitlement = fetchSubscriptionStatus
+  fetchEntitlement = fetchSubscriptionStatus,
+  logger
 } = {}) {
   const normalizedId = normalizeUserId(gtcUserId);
   const forwarded = extractForwardableParams(query);
