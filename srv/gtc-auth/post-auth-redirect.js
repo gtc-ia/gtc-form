@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { fetchSubscriptionStatus } from './entitlement.js';
 
 const PAYMENT_PORTAL_URL = process.env.PAYMENT_PORTAL_URL || 'https://pay.gtstor.com/payment.php';
@@ -39,27 +40,52 @@ function computeStatusActive(status) {
   return ACTIVE_STATUSES.has(normalized);
 }
 
-function isEntitlementActive(entitlement) {
+function evaluateEntitlementActivity(entitlement) {
+  const baseDetails = {
+    status: entitlement?.status ?? null,
+    end_date: entitlement?.end_date ?? null,
+    is_active_raw: entitlement?.is_active ?? null
+  };
+
   if (!entitlement || typeof entitlement !== 'object') {
-    return false;
+    return { isActive: false, reason: 'missing_entitlement', details: baseDetails };
   }
 
   const endDate = parseEndDate(entitlement.end_date);
   const hasFutureEndDate = endDate ? endDate.getTime() >= Date.now() : false;
-  if (hasFutureEndDate) {
-    return true;
-  }
-
-  const hasActiveStatus = computeStatusActive(entitlement.status);
-  if (hasActiveStatus && !endDate) {
-    return true;
-  }
-
+  const normalizedStatus = entitlement.status ? String(entitlement.status).trim().toLowerCase() : null;
+  const hasActiveStatus = normalizedStatus ? ACTIVE_STATUSES.has(normalizedStatus) : false;
   const coerced = coerceBoolean(entitlement.is_active);
-  if (coerced === true) return true;
-  if (coerced === false) return false;
 
-  return false;
+  const details = {
+    ...baseDetails,
+    normalized_status: normalizedStatus,
+    coerced_is_active: coerced,
+    has_future_end_date: hasFutureEndDate,
+    parsed_end_date: endDate ? endDate.toISOString() : null
+  };
+
+  if (hasFutureEndDate) {
+    return { isActive: true, reason: 'future_end_date', details };
+  }
+
+  if (hasActiveStatus && !endDate) {
+    return { isActive: true, reason: 'active_status_without_end', details };
+  }
+
+  if (coerced === true) {
+    return { isActive: true, reason: 'explicit_true_flag', details };
+  }
+
+  if (coerced === false) {
+    return { isActive: false, reason: 'explicit_false_flag', details };
+  }
+
+  if (endDate) {
+    return { isActive: false, reason: 'expired_end_date', details };
+  }
+
+  return { isActive: false, reason: 'no_active_signals', details };
 }
 
 export function normalizeUserId(value) {
@@ -137,6 +163,25 @@ export function buildPaymentRedirect(userId, forwarded = {}) {
   return url.toString();
 }
 
+function anonymizeEmailForLog(email) {
+  if (typeof email !== 'string') {
+    return null;
+  }
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  const hash = createHash('sha256').update(normalized).digest('hex').slice(0, 12);
+  const [, domain = null] = normalized.split('@');
+  return domain ? `sha256:${hash}@${domain}` : `sha256:${hash}`;
+}
+
+function anonymizeEmailsForLog(emails = []) {
+  return emails
+    .map(anonymizeEmailForLog)
+    .filter(Boolean);
+}
+
 export async function determinePostAuthRedirect({
   gtcUserId,
   query = {},
@@ -147,13 +192,19 @@ export async function determinePostAuthRedirect({
 
   try {
     const entitlement = await fetchEntitlement(normalizedId);
-    const isActive = isEntitlementActive(entitlement);
-    const location = isActive ? buildChatRedirect(forwarded) : buildPaymentRedirect(normalizedId, forwarded);
+    const activity = evaluateEntitlementActivity(entitlement);
+    const location = activity.isActive
+      ? buildChatRedirect(forwarded)
+      : buildPaymentRedirect(normalizedId, forwarded);
+    const lookupEmailsHashed = anonymizeEmailsForLog(entitlement?.lookup_emails || []);
     return {
       location,
-      isActive,
+      isActive: activity.isActive,
       entitlement,
-      rawEntitlement: entitlement
+      rawEntitlement: entitlement,
+      activity,
+      normalizedUserId: normalizedId,
+      lookupEmailsHashed
     };
   } catch (error) {
     const fallback = buildPaymentRedirect(normalizedId, forwarded);

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { pool } from './db.js';
 
 const ACTIVE_STATUSES = new Set(['active', 'trialing']);
@@ -251,8 +252,73 @@ function resolveEmailQueryTemplate(column) {
   return EMAIL_QUERY_TEMPLATES.find((candidate) => candidate.column === column);
 }
 
-async function runEmailSubscriptionQuery(executeQuery, emails) {
+function resolveLogger(logger) {
+  if (logger && typeof logger === 'object') {
+    return logger;
+  }
+  return console;
+}
+
+function emitLog(logger, level, message, payload) {
+  const targetLogger = resolveLogger(logger);
+  const fn = typeof targetLogger?.[level] === 'function' ? targetLogger[level] : targetLogger.log;
+  if (typeof fn !== 'function') {
+    return;
+  }
+  try {
+    fn.call(targetLogger, message, payload);
+  } catch (err) {
+    // Logging should never crash the flow – swallow errors silently
+  }
+}
+
+function serializeError(error) {
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+  const serialized = {
+    message: error.message,
+    code: error.code,
+    name: error.name
+  };
+  if (error.severity) {
+    serialized.severity = error.severity;
+  }
+  if (error.detail) {
+    serialized.detail = error.detail;
+  }
+  if (error.hint) {
+    serialized.hint = error.hint;
+  }
+  return serialized;
+}
+
+function anonymizeEmailForLog(email) {
+  if (typeof email !== 'string') {
+    return null;
+  }
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  const hash = createHash('sha256').update(normalized).digest('hex').slice(0, 12);
+  const [, domain = null] = normalized.split('@');
+  return domain ? `sha256:${hash}@${domain}` : `sha256:${hash}`;
+}
+
+function anonymizeEmailsForLog(emails = []) {
+  return emails
+    .map(anonymizeEmailForLog)
+    .filter(Boolean);
+}
+
+async function runEmailSubscriptionQuery(executeQuery, emails, { logger, gtcUserId, phase } = {}) {
   if (!emails || emails.length === 0) {
+    emitLog(logger, 'info', 'entitlement.lookup.email_skipped', {
+      gtcUserId,
+      phase,
+      reason: 'no_emails'
+    });
     return null;
   }
 
@@ -289,19 +355,54 @@ async function runEmailSubscriptionQuery(executeQuery, emails) {
       const rows = result?.rows ?? [];
       if (rows.length > 0) {
         emailQueryVariant = candidate.column;
+        emitLog(logger, 'info', 'entitlement.lookup.email_candidate_success', {
+          gtcUserId,
+          phase,
+          column: candidate.column,
+          rowCount: rows.length
+        });
         return result;
       }
+      emitLog(logger, 'info', 'entitlement.lookup.email_candidate_empty', {
+        gtcUserId,
+        phase,
+        column: candidate.column,
+        rowCount: 0
+      });
     } catch (error) {
       if (error && error.code === UNDEFINED_COLUMN_CODE) {
         unavailableEmailColumns.add(candidate.column);
+        emitLog(logger, 'warn', 'entitlement.lookup.email_column_unavailable', {
+          gtcUserId,
+          phase,
+          column: candidate.column,
+          error: serializeError(error)
+        });
         continue;
       }
+      emitLog(logger, 'error', 'entitlement.lookup.email_candidate_failed', {
+        gtcUserId,
+        phase,
+        column: candidate.column,
+        error: serializeError(error)
+      });
       throw error;
     }
   }
 
   if (orderedCandidates.length === 0 && EMAIL_QUERY_TEMPLATES.every(({ column }) => unavailableEmailColumns.has(column))) {
     emailQueryVariant = 'unavailable';
+    emitLog(logger, 'warn', 'entitlement.lookup.email_columns_unavailable', {
+      gtcUserId,
+      phase,
+      unavailableColumns: Array.from(unavailableEmailColumns)
+    });
+  } else {
+    emitLog(logger, 'info', 'entitlement.lookup.email_candidates_exhausted', {
+      gtcUserId,
+      phase,
+      triedColumns: Array.from(tried)
+    });
   }
 
   return null;
@@ -411,40 +512,151 @@ function buildDefaultEntitlement(normalizedId) {
   };
 }
 
-export async function fetchSubscriptionStatus(gtcUserId, { queryImpl } = {}) {
+export async function fetchSubscriptionStatus(gtcUserId, options = {}) {
+  const { queryImpl, logger } = options;
   const normalizedId = normalizeUserIdForQuery(gtcUserId);
   const executeQuery = resolveQueryExecutor(queryImpl);
+  const logBase = { gtcUserId: normalizedId };
 
-  const result = await runSubscriptionQuery(executeQuery, normalizedId);
+  emitLog(logger, 'info', 'entitlement.lookup.start', {
+    ...logBase,
+    subscriptionQueryVariant
+  });
+
+  const initialVariant = subscriptionQueryVariant;
+
+  let result;
+  try {
+    result = await runSubscriptionQuery(executeQuery, normalizedId);
+  } catch (error) {
+    emitLog(logger, 'error', 'entitlement.lookup.primary_failed', {
+      ...logBase,
+      initialVariant,
+      error: serializeError(error)
+    });
+    throw error;
+  }
   const rows = result?.rows ?? [];
+
+  emitLog(logger, 'info', 'entitlement.lookup.primary_complete', {
+    ...logBase,
+    initialVariant,
+    finalVariant: subscriptionQueryVariant,
+    rowCount: rows.length
+  });
 
   if (rows.length > 0) {
     const entitlement = mapSubscriptionRow(rows[0], normalizedId);
     entitlement.lookup_strategy = 'gtc_user_id';
+    emitLog(logger, 'info', 'entitlement.lookup.primary_row_evaluated', {
+      ...logBase,
+      rowCount: rows.length,
+      isActive: entitlement.is_active,
+      status: entitlement.status,
+      endDate: entitlement.end_date
+    });
     if (entitlement.is_active) {
+      emitLog(logger, 'info', 'entitlement.lookup.resolved', {
+        ...logBase,
+        resolution: 'primary_active',
+        lookupStrategy: entitlement.lookup_strategy,
+        isActive: entitlement.is_active,
+        status: entitlement.status,
+        endDate: entitlement.end_date,
+        subscriptionQueryVariant,
+        emailQueryVariant: emailQueryVariant === 'unavailable' ? null : emailQueryVariant,
+        lookupEmails: []
+      });
       return entitlement;
     }
 
     const emails = await runUserEmailQuery(executeQuery, normalizedId);
-    const emailResult = await runEmailSubscriptionQuery(executeQuery, emails);
+    emitLog(logger, 'info', 'entitlement.lookup.email_candidates', {
+      ...logBase,
+      phase: 'primary_inactive',
+      emailCount: emails.length,
+      emails: anonymizeEmailsForLog(emails)
+    });
+    const emailResult = await runEmailSubscriptionQuery(executeQuery, emails, {
+      logger,
+      gtcUserId: normalizedId,
+      phase: 'primary_inactive'
+    });
     const emailRows = emailResult?.rows ?? [];
+    emitLog(logger, 'info', 'entitlement.lookup.email_result', {
+      ...logBase,
+      phase: 'primary_inactive',
+      emailCount: emails.length,
+      emailQueryVariant: emailQueryVariant === 'unavailable' ? null : emailQueryVariant,
+      rowCount: emailRows.length
+    });
     if (emailRows.length === 0) {
+      emitLog(logger, 'info', 'entitlement.lookup.resolved', {
+        ...logBase,
+        resolution: 'primary_inactive',
+        lookupStrategy: entitlement.lookup_strategy,
+        isActive: entitlement.is_active,
+        status: entitlement.status,
+        endDate: entitlement.end_date,
+        subscriptionQueryVariant,
+        emailQueryVariant: emailQueryVariant === 'unavailable' ? null : emailQueryVariant,
+        lookupEmails: []
+      });
       return entitlement;
     }
 
     const fallbackEntitlement = mapSubscriptionRow(emailRows[0], normalizedId);
     fallbackEntitlement.lookup_strategy = 'email';
     fallbackEntitlement.lookup_emails = emails;
+    emitLog(logger, 'info', 'entitlement.lookup.resolved', {
+      ...logBase,
+      resolution: 'email_fallback',
+      lookupStrategy: fallbackEntitlement.lookup_strategy,
+      isActive: fallbackEntitlement.is_active,
+      status: fallbackEntitlement.status,
+      endDate: fallbackEntitlement.end_date,
+      subscriptionQueryVariant,
+      emailQueryVariant: emailQueryVariant === 'unavailable' ? null : emailQueryVariant,
+      lookupEmails: anonymizeEmailsForLog(emails)
+    });
     return fallbackEntitlement;
   }
 
   const emails = await runUserEmailQuery(executeQuery, normalizedId);
-  const emailResult = await runEmailSubscriptionQuery(executeQuery, emails);
+  emitLog(logger, 'info', 'entitlement.lookup.email_candidates', {
+    ...logBase,
+    phase: 'no_primary_rows',
+    emailCount: emails.length,
+    emails: anonymizeEmailsForLog(emails)
+  });
+  const emailResult = await runEmailSubscriptionQuery(executeQuery, emails, {
+    logger,
+    gtcUserId: normalizedId,
+    phase: 'no_primary_rows'
+  });
   const emailRows = emailResult?.rows ?? [];
+  emitLog(logger, 'info', 'entitlement.lookup.email_result', {
+    ...logBase,
+    phase: 'no_primary_rows',
+    emailCount: emails.length,
+    emailQueryVariant: emailQueryVariant === 'unavailable' ? null : emailQueryVariant,
+    rowCount: emailRows.length
+  });
   if (emailRows.length > 0) {
     const fallbackEntitlement = mapSubscriptionRow(emailRows[0], normalizedId);
     fallbackEntitlement.lookup_strategy = 'email';
     fallbackEntitlement.lookup_emails = emails;
+    emitLog(logger, 'info', 'entitlement.lookup.resolved', {
+      ...logBase,
+      resolution: 'email_only',
+      lookupStrategy: fallbackEntitlement.lookup_strategy,
+      isActive: fallbackEntitlement.is_active,
+      status: fallbackEntitlement.status,
+      endDate: fallbackEntitlement.end_date,
+      subscriptionQueryVariant,
+      emailQueryVariant: emailQueryVariant === 'unavailable' ? null : emailQueryVariant,
+      lookupEmails: anonymizeEmailsForLog(emails)
+    });
     return fallbackEntitlement;
   }
 
@@ -453,6 +665,17 @@ export async function fetchSubscriptionStatus(gtcUserId, { queryImpl } = {}) {
   if (emails.length) {
     defaultEntitlement.lookup_emails = emails;
   }
+  emitLog(logger, 'info', 'entitlement.lookup.resolved', {
+    ...logBase,
+    resolution: 'default',
+    lookupStrategy: defaultEntitlement.lookup_strategy,
+    isActive: defaultEntitlement.is_active,
+    status: defaultEntitlement.status,
+    endDate: defaultEntitlement.end_date,
+    subscriptionQueryVariant,
+    emailQueryVariant: emailQueryVariant === 'unavailable' ? null : emailQueryVariant,
+    lookupEmails: anonymizeEmailsForLog(defaultEntitlement.lookup_emails || [])
+  });
   return defaultEntitlement;
 }
 
