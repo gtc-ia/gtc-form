@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { fetchSubscriptionStatus } from './entitlement.js';
 
 const PAYMENT_PORTAL_URL = process.env.PAYMENT_PORTAL_URL || 'https://pay.gtstor.com/payment.php';
@@ -39,9 +40,15 @@ function computeStatusActive(status) {
   return ACTIVE_STATUSES.has(normalized);
 }
 
-function isEntitlementActive(entitlement) {
+function evaluateEntitlementActivity(entitlement) {
+  const baseDetails = {
+    status: entitlement?.status ?? null,
+    end_date: entitlement?.end_date ?? null,
+    is_active_raw: entitlement?.is_active ?? null
+  };
+
   if (!entitlement || typeof entitlement !== 'object') {
-    return false;
+    return { isActive: false, reason: 'missing_entitlement', details: baseDetails };
   }
 
   const endDate = parseEndDate(entitlement.end_date);
@@ -136,6 +143,25 @@ export function buildPaymentRedirect(userId, forwarded = {}) {
   url.searchParams.set('user_id', userId);
   applyForwardedParams(url, forwarded);
   return url.toString();
+}
+
+function anonymizeEmailForLog(email) {
+  if (typeof email !== 'string') {
+    return null;
+  }
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  const hash = createHash('sha256').update(normalized).digest('hex').slice(0, 12);
+  const [, domain = null] = normalized.split('@');
+  return domain ? `sha256:${hash}@${domain}` : `sha256:${hash}`;
+}
+
+function anonymizeEmailsForLog(emails = []) {
+  return emails
+    .map(anonymizeEmailForLog)
+    .filter(Boolean);
 }
 
 export async function determinePostAuthRedirect({

@@ -35,6 +35,35 @@ test('status + future end_date imply activity when boolean flag missing', async 
   });
   assert.equal(decision.location, 'https://app.gtstor.com/chat/');
   assert.equal(decision.isActive, true);
+  assert.equal(decision.activity.reason, 'future_end_date');
+});
+
+test('future end_date still grants access even when is_active is false', async () => {
+  const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ status: 'canceled', end_date: future, is_active: false })
+  });
+  assert.equal(decision.location, 'https://app.gtstor.com/chat/');
+  assert.equal(decision.isActive, true);
+});
+
+test('active status without end_date overrides false boolean flags', async () => {
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ status: 'active', end_date: null, is_active: false })
+  });
+  assert.equal(decision.location, 'https://app.gtstor.com/chat/');
+  assert.equal(decision.isActive, true);
+});
+
+test('status without end_date still routes active members to chat', async () => {
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ status: 'active', end_date: null })
+  });
+  assert.equal(decision.location, 'https://app.gtstor.com/chat/');
+  assert.equal(decision.isActive, true);
 });
 
 test('status without end_date still routes active members to chat', async () => {
@@ -78,6 +107,8 @@ test('inactive users are routed to the payment portal with their id', async () =
   assert.equal(url.pathname, '/payment.php');
   assert.equal(url.searchParams.get('user_id'), '3001');
   assert.equal(url.searchParams.get('next'), '/chat/history');
+  assert.equal(decision.activity.reason, 'explicit_false_flag');
+  assert.equal(decision.isActive, false);
 });
 
 test('subscription lookups that throw fall back to the payment portal', async () => {
@@ -91,6 +122,17 @@ test('subscription lookups that throw fall back to the payment portal', async ()
   const url = new URL(decision.location);
   assert.equal(url.searchParams.get('user_id'), '3001');
   assert.equal(decision.error, rpcError);
+});
+
+test('lookup emails are hashed for logging diagnostics', async () => {
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ is_active: false, lookup_emails: ['User@Example.com', ''] })
+  });
+
+  assert.ok(Array.isArray(decision.lookupEmailsHashed));
+  assert.equal(decision.lookupEmailsHashed.length, 1);
+  assert.match(decision.lookupEmailsHashed[0], /^sha256:[0-9a-f]{12}@example\.com$/);
 });
 
 test('unsafe next parameters are ignored', async () => {

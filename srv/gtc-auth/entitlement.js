@@ -106,6 +106,7 @@ function computeIsActive({ explicit, status, endDate }) {
   if (!ACTIVE_STATUSES.has(normalizedStatus)) {
     return false;
   }
+}
 
   const parsedEndDate = toDate(endDate);
   if (!parsedEndDate) {
