@@ -59,7 +59,7 @@ This document describes the current configuration, software stack, and automatio
 | 2 | `gtc-auth` | PostgreSQL (`gtc_db`) | Creates records in `public."user"`, `auth_email`, `auth_google`, and verification tokens. |
 | 3 | Registration form / payment portal | Stripe billing | Payment links include `gtc_user_id` query parameter so Stripe session metadata references the user. |
 | 4 | Stripe webhook → n8n | PostgreSQL (`public.subscriptions`) | `Save Subscription` node writes subscription rows keyed by `gtc_user_id`; rejects payloads without the identifier. |
-| 5 | `gtc-auth` entitlement checks | PostgREST RPC (`subscription_status`) | `fetchSubscriptionStatus` queries the RPC and drives the `/auth/finish` redirect (chat vs payment). |
+| 5 | `gtc-auth` entitlement checks | PostgreSQL query (`public.subscriptions`) | `fetchSubscriptionStatus` читает подписки напрямую из SQL и управляет редиректом `/auth/finish` (чат vs оплата). Если колонка `is_active` ещё не развёрнута, сервис автоматически переключается на резервный запрос без неё, чтобы активные клиенты не теряли доступ. |
 
 ### Registered User Data Persistence
 

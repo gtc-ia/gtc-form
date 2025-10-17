@@ -55,7 +55,7 @@ function isEntitlementActive(entitlement) {
 
   const endDate = parseEndDate(entitlement.end_date);
   if (!endDate) {
-    return false;
+    return true;
   }
 
   return endDate.getTime() > Date.now();
@@ -148,7 +148,12 @@ export async function determinePostAuthRedirect({
     const entitlement = await fetchEntitlement(normalizedId);
     const isActive = isEntitlementActive(entitlement);
     const location = isActive ? buildChatRedirect(forwarded) : buildPaymentRedirect(normalizedId, forwarded);
-    return { location, isActive, entitlement, rawEntitlement };
+    return {
+      location,
+      isActive,
+      entitlement,
+      rawEntitlement: entitlement
+    };
   } catch (error) {
     const fallback = buildPaymentRedirect(normalizedId, forwarded);
     return { location: fallback, error };
