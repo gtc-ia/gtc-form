@@ -158,7 +158,112 @@ export async function fetchSubscriptionStatus(gtcUserId, { queryImpl } = {}) {
   };
 }
 
+function coerceBoolean(value) {
+  if (value === true) return true;
+  if (value === false) return false;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', 't', '1', 'yes', 'y'].includes(normalized)) return true;
+    if (['false', 'f', '0', 'no', 'n'].includes(normalized)) return false;
+  }
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+  }
+  return undefined;
+}
+
+function toDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.valueOf()) ? null : value;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.valueOf())) {
+    return null;
+  }
+  return parsed;
+}
+
+function toIsoString(value) {
+  const date = toDate(value);
+  return date ? date.toISOString() : null;
+}
+
+function computeIsActive({ explicit, status, endDate }) {
+  const coerced = coerceBoolean(explicit);
+  if (typeof coerced === 'boolean') {
+    return coerced;
+  }
+
+  if (!status) {
+    return false;
+  }
+
+  const normalizedStatus = String(status).trim().toLowerCase();
+  if (!ACTIVE_STATUSES.has(normalizedStatus)) {
+    return false;
+  }
+
+  const parsedEndDate = toDate(endDate);
+  if (!parsedEndDate) {
+    return true;
+  }
+
+  return parsedEndDate.getTime() > Date.now();
+}
+
+export async function fetchSubscriptionStatus(gtcUserId, { queryImpl } = {}) {
+  const normalizedId = normalizeUserIdForQuery(gtcUserId);
+  const executeQuery = resolveQueryExecutor(queryImpl);
+
+  const result = await runSubscriptionQuery(executeQuery, normalizedId);
+  const rows = result?.rows ?? [];
+
+  if (rows.length === 0) {
+    return {
+      is_active: false,
+      status: null,
+      end_date: null
+    };
+  }
+
+  const row = rows[0];
+  const status = row.status ?? null;
+  const endDateIso = toIsoString(row.end_date);
+  const startDateIso = toIsoString(row.start_date);
+  const createdAtIso = toIsoString(row.created_at);
+  const updatedAtIso = toIsoString(row.updated_at);
+
+  return {
+    subscription_id: row.subscription_id ?? null,
+    gtc_user_id: row.gtc_user_id ?? normalizedId,
+    status,
+    plan_code: row.plan_code ?? null,
+    start_date: startDateIso,
+    end_date: endDateIso,
+    stripe_customer_id: row.stripe_customer_id ?? null,
+    stripe_subscription_id: row.stripe_subscription_id ?? null,
+    livemode: typeof row.livemode === 'boolean' ? row.livemode : coerceBoolean(row.livemode) ?? null,
+    created_at: createdAtIso,
+    updated_at: updatedAtIso,
+    is_active: computeIsActive({
+      explicit: row.is_active,
+      status,
+      endDate: row.end_date
+    }),
+    source: 'sql'
+  };
+}
+
 export const entitlementConfig = Object.freeze({
   query: SUBSCRIPTION_STATUS_QUERY,
   activeStatuses: [...ACTIVE_STATUSES]
 });
+
+export function __setSubscriptionQueryVariant(variant = 'primary') {
+  if (variant !== 'primary' && variant !== 'legacy') {
+    throw new TypeError('invalid_subscription_query_variant');
+  }
+  subscriptionQueryVariant = variant;
+}
