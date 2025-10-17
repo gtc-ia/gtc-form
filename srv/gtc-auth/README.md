@@ -29,7 +29,7 @@ Key variables for the post-auth redirect pipeline:
 
 - `PAYMENT_PORTAL_URL` — hosted payment page that accepts `user_id` in the query string.
 - `CHAT_REDIRECT_PATH` — relative path to the chat workspace (defaults to `/chat/`).
-- `ENTITLEMENT_RPC_URL` / `ENTITLEMENT_TIMEOUT_MS` — PostgREST RPC used to resolve subscription status.
+- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` — connection parameters for the GTC1 PostgreSQL cluster that stores subscription data.
 - `AUTH_COOKIE_NAME`, `AUTH_COOKIE_DOMAIN`, `AUTH_COOKIE_SECURE`, `AUTH_COOKIE_MAX_AGE_MS` — configure the transient cookie that stores `gtc_user_id` between `/auth/*` handlers and `/auth/finish`.
 
 ## Install & run
@@ -86,16 +86,16 @@ Response: `{ "gtc_user_id": 123, "email": "user@example.com" }`
 Successful auth responses also set an HTTP-only cookie (see `AUTH_COOKIE_*`). Clients should simply navigate to `/auth/finish` to let the server decide the final destination. All endpoints return `{ "code": "..." }` on error according to the server logic.
 
 ### `GET /auth/finish`
-Reads `gtc_user_id` from the transient cookie, calls the entitlement RPC, and issues a `302` redirect:
+Reads `gtc_user_id` from the transient cookie, queries `public.subscriptions` in PostgreSQL, and issues a `302` redirect:
 
 - Active subscription (`is_active === true`) → `https://app.gtstor.com/chat/`
-- Missing/expired subscription or RPC failure → `https://pay.gtstor.com/payment.php?user_id=<gtc_user_id>`
+- Missing/expired subscription or query failure → `https://pay.gtstor.com/payment.php?user_id=<gtc_user_id>`
 
 The handler forwards validated `lang` and `next` query parameters to the target.
 
-> **Important:** Entitlement decisions are based exclusively on the PostgREST `subscription_status` RPC. Stripe Customer Portal
-> interactions are only triggered by explicit user actions (for example, `/billing/portal`) and never as part of the post-login
-> flow.
+> **Important:** Entitlement decisions are based exclusively on the data stored in `public.subscriptions` on the GTC1 PostgreSQL
+> cluster. Stripe Customer Portal interactions are only triggered by explicit user actions (for example, `/billing/portal`) and
+> never as part of the post-login flow.
 
 ## systemd unit
 
