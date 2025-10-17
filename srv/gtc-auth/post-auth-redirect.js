@@ -55,9 +55,10 @@ function isEntitlementActive(entitlement) {
     return true;
   }
 
-  const coerced = coerceBoolean(entitlement.is_active);
-  if (coerced === true) return true;
-  if (coerced === false) return false;
+  const endDate = parseEndDate(entitlement.end_date);
+  if (!endDate) {
+    return true;
+  }
 
   return false;
 }
