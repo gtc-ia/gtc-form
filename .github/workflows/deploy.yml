@@ -13,12 +13,91 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Normalize deploy host
+      id: normalize_host
+      env:
+        RAW_HOST: ${{ secrets.SERVER_IP }}
+      run: |
+        set -euo pipefail
+
+        if [[ -z "${RAW_HOST}" ]]; then
+          echo "SERVER_IP secret is empty" >&2
+          exit 1
+        fi
+
+        echo "::add-mask::${RAW_HOST}"
+
+        python3 <<'PY'
+import os
+import re
+import sys
+import ipaddress
+
+raw = os.environ["RAW_HOST"]
+normalized = raw.replace("\r", " ").replace("\n", " ").strip()
+
+if not normalized:
+    sys.stderr.write("SERVER_IP secret normalised to empty string\n")
+    raise SystemExit(1)
+
+prefix_pattern = re.compile(r'^(?:[A-Za-z]+[:/ ]+)+')
+previous = None
+while previous != normalized:
+    previous = normalized
+    normalized = prefix_pattern.sub('', normalized).strip()
+
+host_match = re.search(r'((?:\d{1,3}\.){3}\d{1,3})', normalized)
+host = host_match.group(1) if host_match else None
+
+if host is None:
+    token_candidates = []
+    for token in re.split(r'[^A-Za-z0-9\.-]+', normalized):
+        token = token.strip('.-')
+        if not token:
+            continue
+        lowered = token.lower()
+        if lowered in {"tcp", "ssh", "udp"}:
+            continue
+        if re.fullmatch(r'[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*', token):
+            token_candidates.append(token)
+    if not token_candidates:
+        sys.stderr.write("Unable to determine host from SERVER_IP secret\n")
+        raise SystemExit(1)
+    token_candidates.sort(key=lambda value: ('.' not in value, len(value)))
+    host = token_candidates[0]
+
+port_match = re.search(r':\s*(\d+)\b', normalized)
+port = port_match.group(1) if port_match else "22"
+
+try:
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        if not re.fullmatch(r'[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*', host):
+            raise ValueError
+except ValueError:
+    sys.stderr.write(f"Derived host '{host}' is not a valid IP address or hostname\n")
+    raise SystemExit(1)
+
+if not port.isdigit():
+    sys.stderr.write(f"Derived port '{port}' is not numeric\n")
+    raise SystemExit(1)
+
+print(f"::add-mask::{host}")
+print(f"::add-mask::{port}")
+
+with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as handle:
+    handle.write(f"host={host}\n")
+    handle.write(f"port={port}\n")
+PY
+
     - name: Deploy to GTC1 via SSH
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.SERVER_IP }}
+        host: ${{ steps.normalize_host.outputs.host }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ steps.normalize_host.outputs.port }}
         script: |
           cd ~/gtc-form
           git pull origin main
