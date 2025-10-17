@@ -44,13 +44,15 @@ function isEntitlementActive(entitlement) {
     return false;
   }
 
-  const coerced = coerceBoolean(entitlement.is_active);
-  if (coerced === true) return true;
-  if (coerced === false) return false;
+  const endDate = parseEndDate(entitlement.end_date);
+  const hasFutureEndDate = endDate ? endDate.getTime() >= Date.now() : false;
+  if (hasFutureEndDate) {
+    return true;
+  }
 
   const hasActiveStatus = computeStatusActive(entitlement.status);
-  if (!hasActiveStatus) {
-    return false;
+  if (hasActiveStatus && !endDate) {
+    return true;
   }
 
   const endDate = parseEndDate(entitlement.end_date);
@@ -58,7 +60,7 @@ function isEntitlementActive(entitlement) {
     return true;
   }
 
-  return endDate.getTime() > Date.now();
+  return false;
 }
 
 export function normalizeUserId(value) {
