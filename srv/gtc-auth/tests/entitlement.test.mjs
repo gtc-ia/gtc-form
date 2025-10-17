@@ -1,88 +1,108 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  fetchSubscriptionStatus,
-  setEntitlementFallbackFetch,
-  getEntitlementFallbackFetch
-} from '../entitlement.js';
+import { fetchSubscriptionStatus, entitlementConfig } from '../entitlement.js';
 
-const ORIGINAL_FALLBACK = getEntitlementFallbackFetch();
+function futureDate(days = 1) {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+}
 
-test.after(() => {
-  setEntitlementFallbackFetch(ORIGINAL_FALLBACK);
-});
+function pastDate(days = 1) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+}
 
-test('fetchSubscriptionStatus posts normalized numeric id to the RPC', async () => {
+test('fetchSubscriptionStatus queries Postgres with normalized id', async () => {
   let captured;
-  const response = {
-    ok: true,
-    json: async () => ({ is_active: true })
-  };
-  const fakeFetch = async (url, options) => {
-    captured = { url, options };
-    return response;
+  const fakeQuery = async (sql, params) => {
+    captured = { sql, params };
+    return {
+      rows: [
+        {
+          subscription_id: 42,
+          gtc_user_id: 3001,
+          status: 'active',
+          end_date: futureDate(),
+          plan_code: 'pro',
+          stripe_customer_id: 'cus_123',
+          stripe_subscription_id: 'sub_123',
+          created_at: futureDate(-1),
+          updated_at: futureDate()
+        }
+      ]
+    };
   };
 
-  const result = await fetchSubscriptionStatus(' 3001 ', { fetchImpl: fakeFetch });
+  const result = await fetchSubscriptionStatus(' 3001 ', { queryImpl: fakeQuery });
 
-  assert.deepEqual(result, { is_active: true });
-  assert.equal(captured.url, 'https://app.gtstor.com/api/rpc/subscription_status');
-  assert.equal(captured.options.method, 'POST');
-  assert.equal(captured.options.headers['Content-Type'], 'application/json');
-  assert.deepEqual(JSON.parse(captured.options.body), { p_gtc_user_id: 3001 });
-  assert.equal(typeof captured.options.signal, 'object');
-  assert.equal(typeof captured.options.signal?.aborted, 'boolean');
+  assert.ok(captured.sql.includes('FROM public.subscriptions'));
+  assert.deepEqual(captured.params, [3001]);
+  assert.equal(result.status, 'active');
+  assert.equal(result.plan_code, 'pro');
+  assert.equal(result.is_active, true);
+  assert.equal(result.source, 'sql');
+  assert.match(result.end_date, /Z$/);
 });
 
-test('non-ok RPC responses bubble up with entitlement_request_failed', async () => {
-  await assert.rejects(
-    () =>
-      fetchSubscriptionStatus(3001, {
-        fetchImpl: async () => ({ ok: false, status: 503 })
-      }),
-    (error) => error.message === 'entitlement_request_failed' && error.status === 503
+test('missing subscription rows default to inactive state', async () => {
+  const result = await fetchSubscriptionStatus(3002, {
+    queryImpl: async () => ({ rows: [] })
+  });
+
+  assert.equal(result.is_active, false);
+  assert.equal(result.status, null);
+  assert.equal(result.end_date, null);
+});
+
+test('expired subscriptions are treated as inactive', async () => {
+  const result = await fetchSubscriptionStatus('3003', {
+    queryImpl: async () => ({
+      rows: [
+        {
+          status: 'trialing',
+          end_date: pastDate(),
+          updated_at: pastDate()
+        }
+      ]
+    })
+  });
+
+  assert.equal(result.is_active, false);
+});
+
+test('active status without end date is considered active', async () => {
+  const result = await fetchSubscriptionStatus(3004, {
+    queryImpl: async () => ({
+      rows: [
+        {
+          status: 'active',
+          end_date: null
+        }
+      ]
+    })
+  });
+
+  assert.equal(result.is_active, true);
+});
+
+test('boolean flags from SQL override computed status', async () => {
+  const result = await fetchSubscriptionStatus(3005, {
+    queryImpl: async () => ({
+      rows: [
+        {
+          status: 'canceled',
+          end_date: futureDate(),
+          is_active: true
+        }
+      ]
+    })
+  });
+
+  assert.equal(result.is_active, true);
+});
+
+test('subscription query prioritizes active rows ahead of stale history', () => {
+  assert.match(entitlementConfig.query, /COALESCE\s*\(\s*is_active/);
+  assert.match(
+    entitlementConfig.query,
+    /COALESCE[\s\S]+end_date DESC NULLS LAST,\s*updated_at DESC NULLS LAST,\s*created_at DESC NULLS LAST/s
   );
-});
-
-test('default global fetch is used when no override provided', async () => {
-  const originalFetch = globalThis.fetch;
-  let invoked = false;
-  globalThis.fetch = async () => {
-    invoked = true;
-    return { ok: true, json: async () => ({ status: 'active' }) };
-  };
-
-  try {
-    const result = await fetchSubscriptionStatus(3001);
-    assert.deepEqual(result, { status: 'active' });
-    assert.equal(invoked, true);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test('fallback fetch implementation is used when global fetch is absent', async () => {
-  const originalFetch = globalThis.fetch;
-  const originalFallback = getEntitlementFallbackFetch();
-  let invoked = false;
-  const fakeFallback = async () => {
-    invoked = true;
-    return { ok: true, json: async () => ({ is_active: 't' }) };
-  };
-
-  try {
-    globalThis.fetch = undefined;
-    setEntitlementFallbackFetch(fakeFallback);
-
-    const result = await fetchSubscriptionStatus('3001');
-    assert.equal(invoked, true);
-    assert.deepEqual(result, { is_active: 't' });
-  } finally {
-    globalThis.fetch = originalFetch;
-    setEntitlementFallbackFetch(originalFallback);
-  }
-});
-
-test('setEntitlementFallbackFetch enforces function contract', () => {
-  assert.throws(() => setEntitlementFallbackFetch(null), /fallback_fetch_must_be_function/);
 });

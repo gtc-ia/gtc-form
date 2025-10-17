@@ -55,7 +55,7 @@ function isEntitlementActive(entitlement) {
 
   const endDate = parseEndDate(entitlement.end_date);
   if (!endDate) {
-    return false;
+    return true;
   }
 
   return endDate.getTime() > Date.now();

@@ -32,11 +32,11 @@
 3. `POST /auth/request_email_verification` — повторная отправка письма (опционально, только для неподтверждённых адресов).
 4. Пользователь переходит по ссылке из письма (`/verify?token=UUID` на клиенте), который затем вызывает `POST /auth/verify`.
 5. `POST /auth/login` — вход возможен только после подтверждения email.
-6. Клиент перенаправляется на `/auth/finish`, где бэкенд выполняет RPC `subscription_status` и решает, куда отправить пользователя (на `https://app.gtstor.com/chat/` или на платёжку).
+6. Клиент перенаправляется на `/auth/finish`, где бэкенд выполняет SQL-запрос к `public.subscriptions` и решает, куда отправить пользователя (на `https://app.gtstor.com/chat/` или на платёжку).
 
-> После логина решение принимается **только** на основе RPC в GTC DB; автоматические переходы в Stripe Customer Portal запрещены.
+> После логина решение принимается **только** на основе данных PostgreSQL в GTC DB; автоматические переходы в Stripe Customer Portal запрещены.
 
-> После логина решение принимается **только** на основе RPC в GTC DB; автоматические переходы в Stripe Customer Portal запрещены.
+> После логина решение принимается **только** на основе данных PostgreSQL в GTC DB; автоматические переходы в Stripe Customer Portal запрещены.
 
 ### 2.2 Вход через Google
 
@@ -44,7 +44,7 @@
 2. `POST /auth/google` отправляет credential в сервис.
 3. `verifyGoogleCredential` валидирует токен и извлекает поля `email` и `sub`.
 4. Если `sub` уже известен — возвращается существующий пользователь; иначе email связывается с новым или уже подтверждённым пользователем.
-5. После успешного ответа фронт редиректит на `/auth/finish` для проверки подписки через RPC.
+5. После успешного ответа фронт редиректит на `/auth/finish` для проверки подписки через прямой SQL-запрос.
 
 > Управление подпиской через Stripe доступно лишь по явному запросу пользователя (например, кнопка «Manage subscription») и не участвует в пост-логине.
 
@@ -78,9 +78,9 @@ request_email_verification → (письмо) → verify
 | `public.auth_email` | `email` (PK), `user_id`, `pwd_hash`, `email_verified`, `created_at` | Учетная запись с паролем и состоянием подтверждения email. |
 | `public.auth_google` | `google_sub` (PK), `user_id`, `email`, `created_at` | Привязки Google SSO (каждый `sub` и email уникальны). |
 | `public.auth_verification` | `token` (PK), `user_id`, `email`, `expires_at`, `used`, `created_at` | Одноразовые токены подтверждения email (TTL по умолчанию 60 минут). |
-| `public.subscriptions` | `subscription_id` (PK), `gtc_user_id` (NOT NULL), `status`, `start_date`, `end_date`, `stripe_customer_id`, `stripe_subscription_id`, `plan_code`, `stripe_price_id`, `stripe_product_id`, `created_at`, `updated_at`, `livemode` | Записи о подписках, которые создаёт нода n8n «Save Subscription». Используются RPC `subscription_status` (через `fetchSubscriptionStatus`) для проверки права доступа в чат. |
+| `public.subscriptions` | `subscription_id` (PK), `gtc_user_id` (NOT NULL), `status`, `start_date`, `end_date`, `stripe_customer_id`, `stripe_subscription_id`, `plan_code`, `stripe_price_id`, `stripe_product_id`, `created_at`, `updated_at`, `livemode` | Записи о подписках, которые создаёт нода n8n «Save Subscription». Используются прямые SQL-запросы (`fetchSubscriptionStatus`) для проверки права доступа в чат. |
 
-> `fetchSubscriptionStatus` всегда вызывает RPC через серверный HTTP-клиент: при отсутствии глобального `fetch` в рантайме Node.js используется встроенный `node-fetch` полифилл, поэтому проверка подписки не зависит от версии Node или наличия браузерных API.
+> `fetchSubscriptionStatus` выполняет прямой запрос `SELECT ... FROM public.subscriptions WHERE gtc_user_id=$1`, сортирует по `end_date`/`updated_at` и вычисляет `is_active` на бэкенде; внешние HTTP RPC не используются.
 
 Дополнительные индексы (`idx_auth_email_user`, `idx_auth_google_user`, `idx_auth_verif_user`) ускоряют запросы по `user_id` при связке профилей и аудите.
 

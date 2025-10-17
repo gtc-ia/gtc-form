@@ -8,7 +8,7 @@ import {
 
 const noopFetch = async () => ({ is_active: true });
 
-test('string flag from RPC still routes active subscribers to chat', async () => {
+test('string flag from SQL still routes active subscribers to chat', async () => {
   const decision = await determinePostAuthRedirect({
     gtcUserId: '3001',
     fetchEntitlement: async () => ({ is_active: 't' })
@@ -32,6 +32,15 @@ test('status + future end_date imply activity when boolean flag missing', async 
   const decision = await determinePostAuthRedirect({
     gtcUserId: '3001',
     fetchEntitlement: async () => ({ status: 'active', end_date: future })
+  });
+  assert.equal(decision.location, 'https://app.gtstor.com/chat/');
+  assert.equal(decision.isActive, true);
+});
+
+test('status without end_date still routes active members to chat', async () => {
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ status: 'active', end_date: null })
   });
   assert.equal(decision.location, 'https://app.gtstor.com/chat/');
   assert.equal(decision.isActive, true);
@@ -71,7 +80,7 @@ test('inactive users are routed to the payment portal with their id', async () =
   assert.equal(url.searchParams.get('next'), '/chat/history');
 });
 
-test('RPC failures fall back to the payment portal and surface the error', async () => {
+test('subscription lookups that throw fall back to the payment portal', async () => {
   const rpcError = new Error('network down');
   const decision = await determinePostAuthRedirect({
     gtcUserId: '3001',
