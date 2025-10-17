@@ -44,21 +44,22 @@ function isEntitlementActive(entitlement) {
     return false;
   }
 
+  const endDate = parseEndDate(entitlement.end_date);
+  const hasFutureEndDate = endDate ? endDate.getTime() >= Date.now() : false;
+  if (hasFutureEndDate) {
+    return true;
+  }
+
+  const hasActiveStatus = computeStatusActive(entitlement.status);
+  if (hasActiveStatus && !endDate) {
+    return true;
+  }
+
   const coerced = coerceBoolean(entitlement.is_active);
   if (coerced === true) return true;
   if (coerced === false) return false;
 
-  const hasActiveStatus = computeStatusActive(entitlement.status);
-  if (!hasActiveStatus) {
-    return false;
-  }
-
-  const endDate = parseEndDate(entitlement.end_date);
-  if (!endDate) {
-    return false;
-  }
-
-  return endDate.getTime() > Date.now();
+  return false;
 }
 
 export function normalizeUserId(value) {
@@ -148,7 +149,12 @@ export async function determinePostAuthRedirect({
     const entitlement = await fetchEntitlement(normalizedId);
     const isActive = isEntitlementActive(entitlement);
     const location = isActive ? buildChatRedirect(forwarded) : buildPaymentRedirect(normalizedId, forwarded);
-    return { location, isActive, entitlement, rawEntitlement };
+    return {
+      location,
+      isActive,
+      entitlement,
+      rawEntitlement: entitlement
+    };
   } catch (error) {
     const fallback = buildPaymentRedirect(normalizedId, forwarded);
     return { location: fallback, error };
