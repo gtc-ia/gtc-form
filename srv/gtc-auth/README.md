@@ -94,9 +94,8 @@ Reads `gtc_user_id` from the transient cookie, queries `public.subscriptions` in
 The handler forwards validated `lang` and `next` query parameters to the target.
 
 > **Important:** Entitlement decisions are based exclusively on the data stored in `public.subscriptions` on the GTC1 PostgreSQL
-> cluster. If no active row is present for the `gtc_user_id`, the service gathers all emails from `auth_email`/`auth_google` and
-> retries the lookup using the Stripe email column before declaring the user unpaid. Stripe Customer Portal interactions are
-> only triggered by explicit user actions (for example, `/billing/portal`) and never as part of the post-login flow.
+> cluster. Stripe Customer Portal interactions are only triggered by explicit user actions (for example, `/billing/portal`) and
+> never as part of the post-login flow.
 
 ## systemd unit
 
