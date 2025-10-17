@@ -67,7 +67,9 @@ This document describes the current configuration, software stack, and automatio
 - **Email credentials** — table `public.auth_email` (columns: `user_id` FK → `gtc_user_id`, `email`, `pwd_hash`, `email_verified`, `created_at`).
 - **Google bindings** — table `public.auth_google` (columns: `user_id` FK, `google_sub`, `email`, `created_at`).
 - **Verification tokens** — table `public.auth_verification` (columns: `token`, `user_id`, `email`, `expires_at`, `used`, `created_at`).
-- **Subscriptions** — table `public.subscriptions` maintained by n8n (`subscription_id`, **`gtc_user_id`**, `stripe_customer_id`, `stripe_subscription_id`, `plan_code`, `status`, `start_date`, `end_date`, `created_at`, `updated_at`, `stripe_price_id`, `stripe_product_id`, `livemode`). The `gtc_user_id` column is NOT NULL and links billing status to the auth profile.
+- **Subscriptions** — table `public.subscriptions` maintained by n8n (`subscription_id`, **`gtc_user_id`**, `stripe_customer_id`, `stripe_subscription_id`, `plan_code`, `status`, `start_date`, `end_date`, `created_at`, `updated_at`, `stripe_price_id`, `stripe_product_id`, `livemode`, `stripe_customer_email`†). The `gtc_user_id` column is NOT NULL and links billing status to the auth profile. When historic data lacks the id linkage, the auth service falls back to matching by stored emails.
+
+† Depending on the migration history the email column may appear as `stripe_customer_email`, `customer_email`, or simply `email`; the service auto-detects the available field.
 
 ## 🔐 Access & Identity
 
