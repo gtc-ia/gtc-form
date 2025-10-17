@@ -8,7 +8,7 @@ import {
 
 const noopFetch = async () => ({ is_active: true });
 
-test('string flag from RPC still routes active subscribers to chat', async () => {
+test('string flag from SQL still routes active subscribers to chat', async () => {
   const decision = await determinePostAuthRedirect({
     gtcUserId: '3001',
     fetchEntitlement: async () => ({ is_active: 't' })
@@ -17,11 +17,50 @@ test('string flag from RPC still routes active subscribers to chat', async () =>
   assert.equal(decision.isActive, true);
 });
 
+test('rawEntitlement mirrors the subscription payload for downstream logging', async () => {
+  const entitlement = { is_active: true, status: 'active' };
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => entitlement
+  });
+  assert.equal(decision.entitlement, entitlement);
+  assert.equal(decision.rawEntitlement, entitlement);
+});
+
 test('status + future end_date imply activity when boolean flag missing', async () => {
   const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const decision = await determinePostAuthRedirect({
     gtcUserId: '3001',
     fetchEntitlement: async () => ({ status: 'active', end_date: future })
+  });
+  assert.equal(decision.location, 'https://app.gtstor.com/chat/');
+  assert.equal(decision.isActive, true);
+  assert.equal(decision.activity.reason, 'future_end_date');
+});
+
+test('future end_date still grants access even when is_active is false', async () => {
+  const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ status: 'canceled', end_date: future, is_active: false })
+  });
+  assert.equal(decision.location, 'https://app.gtstor.com/chat/');
+  assert.equal(decision.isActive, true);
+});
+
+test('active status without end_date overrides false boolean flags', async () => {
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ status: 'active', end_date: null, is_active: false })
+  });
+  assert.equal(decision.location, 'https://app.gtstor.com/chat/');
+  assert.equal(decision.isActive, true);
+});
+
+test('status without end_date still routes active members to chat', async () => {
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ status: 'active', end_date: null })
   });
   assert.equal(decision.location, 'https://app.gtstor.com/chat/');
   assert.equal(decision.isActive, true);
@@ -59,9 +98,11 @@ test('inactive users are routed to the payment portal with their id', async () =
   assert.equal(url.pathname, '/payment.php');
   assert.equal(url.searchParams.get('user_id'), '3001');
   assert.equal(url.searchParams.get('next'), '/chat/history');
+  assert.equal(decision.activity.reason, 'explicit_false_flag');
+  assert.equal(decision.isActive, false);
 });
 
-test('RPC failures fall back to the payment portal and surface the error', async () => {
+test('subscription lookups that throw fall back to the payment portal', async () => {
   const rpcError = new Error('network down');
   const decision = await determinePostAuthRedirect({
     gtcUserId: '3001',
@@ -72,6 +113,17 @@ test('RPC failures fall back to the payment portal and surface the error', async
   const url = new URL(decision.location);
   assert.equal(url.searchParams.get('user_id'), '3001');
   assert.equal(decision.error, rpcError);
+});
+
+test('lookup emails are hashed for logging diagnostics', async () => {
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ is_active: false, lookup_emails: ['User@Example.com', ''] })
+  });
+
+  assert.ok(Array.isArray(decision.lookupEmailsHashed));
+  assert.equal(decision.lookupEmailsHashed.length, 1);
+  assert.match(decision.lookupEmailsHashed[0], /^sha256:[0-9a-f]{12}@example\.com$/);
 });
 
 test('unsafe next parameters are ignored', async () => {
@@ -93,4 +145,22 @@ test('normalizeUserId rejects empty or non-numeric identifiers', () => {
 test('extractForwardableParams trims and validates values', () => {
   const forwarded = extractForwardableParams({ lang: '  ru-RU  ', next: '/chat/history ' });
   assert.deepEqual(forwarded, { lang: 'ru-RU', next: '/chat/history' });
+});
+
+test('determinePostAuthRedirect forwards the logger to entitlement lookups', async () => {
+  const logger = { info() {}, warn() {}, error() {} };
+  let receivedOptions;
+
+  await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    logger,
+    fetchEntitlement: async (id, options) => {
+      assert.equal(id, '3001');
+      receivedOptions = options;
+      return { is_active: true };
+    }
+  });
+
+  assert.ok(receivedOptions);
+  assert.equal(receivedOptions.logger, logger);
 });

@@ -211,14 +211,25 @@ app.get('/auth/finish', async (req, res) => {
   }
 
   try {
-    const decision = await determinePostAuthRedirect({ gtcUserId, query: req.query });
+    const decision = await determinePostAuthRedirect({
+      gtcUserId,
+      query: req.query,
+      logger: console
+    });
     const entitlement = decision.entitlement ?? {};
     const logPayload = {
       gtcUserId,
+      normalizedUserId: decision.normalizedUserId ?? null,
       location: decision.location,
       status: entitlement.status ?? null,
       end_date: entitlement.end_date ?? null,
-      is_active: entitlement.is_active ?? null
+      is_active: entitlement.is_active ?? null,
+      lookup_strategy: entitlement.lookup_strategy ?? null,
+      lookup_emails_hashed: Array.isArray(decision.lookupEmailsHashed)
+        ? decision.lookupEmailsHashed
+        : undefined,
+      activity_reason: decision.activity?.reason ?? null,
+      activity_details: decision.activity?.details ?? null
     };
 
     if (decision.error) {
