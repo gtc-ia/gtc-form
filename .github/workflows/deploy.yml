@@ -22,43 +22,21 @@ jobs:
           echo "SERVER_IP secret is empty" >&2
           exit 1
         fi
-
         echo "::add-mask::${raw_host}"
-
         clean_host="${raw_host#tcp://}"
         clean_host="${clean_host#tcp/}"
-        clean_host="${clean_host#ssh://}"
-        clean_host="${clean_host#ssh/}"
-        clean_host="$(printf '%s' "${clean_host}" | tr -d '[:space:]')"
-
-        if [[ -z "${clean_host}" ]]; then
-          echo "SERVER_IP secret normalised to empty string" >&2
-          exit 1
-        fi
-
+        clean_host="${clean_host// /}"
         port="22"
-        if [[ "${clean_host}" == *:* ]]; then
+        if [[ "$clean_host" == *:* ]]; then
           port="${clean_host##*:}"
           clean_host="${clean_host%%:*}"
         fi
-
-        if [[ -z "${clean_host}" ]]; then
-          echo "SERVER_IP secret missing host after parsing" >&2
-          exit 1
-        fi
-
-        if ! [[ "${port}" =~ ^[0-9]+$ ]]; then
-          echo "Derived port '${port}' is not numeric" >&2
-          exit 1
-        fi
-
         echo "::add-mask::${clean_host}"
         echo "::add-mask::${port}"
-
         {
           echo "host=${clean_host}"
           echo "port=${port}"
-        } >> "${GITHUB_OUTPUT}"
+        } >> "$GITHUB_OUTPUT"
 
     - name: Deploy to GTC1 via SSH
       uses: appleboy/ssh-action@v1.0.3

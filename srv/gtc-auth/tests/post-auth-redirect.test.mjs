@@ -17,7 +17,7 @@ test('string flag from SQL still routes active subscribers to chat', async () =>
   assert.equal(decision.isActive, true);
 });
 
-test('rawEntitlement mirrors the subscription payload for downstream logging', async () => {
+test('rawEntitlement mirrors the RPC payload for downstream logging', async () => {
   const entitlement = { is_active: true, status: 'active' };
   const decision = await determinePostAuthRedirect({
     gtcUserId: '3001',
@@ -52,6 +52,15 @@ test('active status without end_date overrides false boolean flags', async () =>
   const decision = await determinePostAuthRedirect({
     gtcUserId: '3001',
     fetchEntitlement: async () => ({ status: 'active', end_date: null, is_active: false })
+  });
+  assert.equal(decision.location, 'https://app.gtstor.com/chat/');
+  assert.equal(decision.isActive, true);
+});
+
+test('status without end_date still routes active members to chat', async () => {
+  const decision = await determinePostAuthRedirect({
+    gtcUserId: '3001',
+    fetchEntitlement: async () => ({ status: 'active', end_date: null })
   });
   assert.equal(decision.location, 'https://app.gtstor.com/chat/');
   assert.equal(decision.isActive, true);
