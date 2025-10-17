@@ -53,39 +53,21 @@ function evaluateEntitlementActivity(entitlement) {
 
   const endDate = parseEndDate(entitlement.end_date);
   const hasFutureEndDate = endDate ? endDate.getTime() >= Date.now() : false;
-  const normalizedStatus = entitlement.status ? String(entitlement.status).trim().toLowerCase() : null;
-  const hasActiveStatus = normalizedStatus ? ACTIVE_STATUSES.has(normalizedStatus) : false;
-  const coerced = coerceBoolean(entitlement.is_active);
-
-  const details = {
-    ...baseDetails,
-    normalized_status: normalizedStatus,
-    coerced_is_active: coerced,
-    has_future_end_date: hasFutureEndDate,
-    parsed_end_date: endDate ? endDate.toISOString() : null
-  };
-
   if (hasFutureEndDate) {
-    return { isActive: true, reason: 'future_end_date', details };
+    return true;
   }
 
+  const hasActiveStatus = computeStatusActive(entitlement.status);
   if (hasActiveStatus && !endDate) {
-    return { isActive: true, reason: 'active_status_without_end', details };
+    return true;
   }
 
-  if (coerced === true) {
-    return { isActive: true, reason: 'explicit_true_flag', details };
+  const endDate = parseEndDate(entitlement.end_date);
+  if (!endDate) {
+    return true;
   }
 
-  if (coerced === false) {
-    return { isActive: false, reason: 'explicit_false_flag', details };
-  }
-
-  if (endDate) {
-    return { isActive: false, reason: 'expired_end_date', details };
-  }
-
-  return { isActive: false, reason: 'no_active_signals', details };
+  return false;
 }
 
 export function normalizeUserId(value) {
@@ -192,19 +174,13 @@ export async function determinePostAuthRedirect({
 
   try {
     const entitlement = await fetchEntitlement(normalizedId);
-    const activity = evaluateEntitlementActivity(entitlement);
-    const location = activity.isActive
-      ? buildChatRedirect(forwarded)
-      : buildPaymentRedirect(normalizedId, forwarded);
-    const lookupEmailsHashed = anonymizeEmailsForLog(entitlement?.lookup_emails || []);
+    const isActive = isEntitlementActive(entitlement);
+    const location = isActive ? buildChatRedirect(forwarded) : buildPaymentRedirect(normalizedId, forwarded);
     return {
       location,
-      isActive: activity.isActive,
+      isActive,
       entitlement,
-      rawEntitlement: entitlement,
-      activity,
-      normalizedUserId: normalizedId,
-      lookupEmailsHashed
+      rawEntitlement: entitlement
     };
   } catch (error) {
     const fallback = buildPaymentRedirect(normalizedId, forwarded);
