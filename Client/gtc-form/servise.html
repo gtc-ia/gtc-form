@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTC Servise</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fb;
+      --fg: #0f172a;
+      --muted: #475569;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --shadow: 0 20px 45px rgba(15, 23, 42, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at top, rgba(79, 70, 229, 0.08), transparent 40%), var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+    }
+
+    img {
+      max-width: 100%;
+      display: block;
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 24px 0 48px;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: 0.04em;
+    }
+
+    nav {
+      display: flex;
+      gap: 18px;
+      font-weight: 500;
+    }
+
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    nav a:hover {
+      color: var(--fg);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 32px;
+      align-items: center;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      margin: 0 0 16px;
+      line-height: 1.1;
+    }
+
+    .hero p {
+      margin: 0 0 24px;
+      color: var(--muted);
+      font-size: 1.1rem;
+    }
+
+    .hero-cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 14px 28px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 20px 35px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--fg);
+      border: 1px solid var(--border);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 18px;
+      margin-top: 30px;
+    }
+
+    .stat {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 18px 20px;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+    }
+
+    .stat strong {
+      font-size: 1.8rem;
+      display: block;
+    }
+
+    .section-title {
+      margin: 80px 0 24px;
+    }
+
+    .section-title span {
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .section-title h2 {
+      margin: 8px 0 0;
+      font-size: clamp(1.8rem, 4vw, 2.7rem);
+    }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .service-card {
+      background: var(--card);
+      border-radius: 24px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 240px;
+    }
+
+    .service-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: var(--accent-soft);
+      display: grid;
+      place-items: center;
+      font-size: 1.4rem;
+      color: var(--accent);
+    }
+
+    .service-card h3 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+
+    .service-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .tag-list {
+      margin-top: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag {
+      background: rgba(37, 99, 235, 0.12);
+      color: var(--accent);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+    }
+
+    .workflow {
+      margin-top: 40px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 18px;
+    }
+
+    .workflow-step {
+      background: #fff;
+      border-radius: 20px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .workflow-step strong {
+      font-size: 3.2rem;
+      line-height: 1;
+      color: rgba(37, 99, 235, 0.15);
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-weight: 800;
+    }
+
+    .workflow-step h4 {
+      margin: 0 0 8px;
+      font-size: 1.1rem;
+    }
+
+    .workflow-step p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .cta {
+      margin-top: 80px;
+      background: linear-gradient(120deg, #1d4ed8, #7c3aed);
+      border-radius: 32px;
+      padding: 48px;
+      color: #fff;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+      align-items: center;
+    }
+
+    .cta h3 {
+      margin: 0 0 12px;
+      font-size: 2rem;
+    }
+
+    .cta p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    footer {
+      margin-top: 60px;
+      padding: 30px 0 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    @media (max-width: 720px) {
+      nav {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+      }
+
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .cta {
+        padding: 32px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="logo">GTC • Servise</div>
+      <nav>
+        <a href="#services">Сервисы</a>
+        <a href="#workflow">Подход</a>
+        <a href="#cta">Связаться</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="logo" style="font-size:0.9rem; letter-spacing:0.28em; color:var(--accent);">Digital Ecosystem</p>
+        <h1>Сервисы GTC, которые ускоряют продуктовые команды</h1>
+        <p>
+          Мы проектируем и поддерживаем цифровые сервисы полного цикла: от первых гипотез и data-платформ до каналов
+          общения с клиентами. Команда GTC берёт на себя ответственность за результат и прозрачность процессов.
+        </p>
+        <div class="hero-cta">
+          <button class="btn btn-primary">Получить консультацию</button>
+          <button class="btn btn-outline">Смотреть презентацию</button>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <strong>120+</strong>
+            <span>запущенных сервисов</span>
+          </div>
+          <div class="stat">
+            <strong>24/7</strong>
+            <span>сопровождение и мониторинг</span>
+          </div>
+          <div class="stat">
+            <strong>9.6</strong>
+            <span>уровень CSI по итогам 2023</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <img src="https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=900&q=80" alt="Команда GTC" style="border-radius:32px; box-shadow:var(--shadow);" />
+      </div>
+    </section>
+
+    <div class="section-title" id="services">
+      <span>Что мы делаем</span>
+      <h2>Ключевые сервисы</h2>
+    </div>
+
+    <div class="services-grid">
+      <article class="service-card">
+        <div class="service-icon">⚙️</div>
+        <h3>Платформенная инженерия</h3>
+        <p>Создаём устойчивую инфраструктуру для запусков новых продуктов. Настраиваем CI/CD, мониторинг и безопасный доступ.</p>
+        <div class="tag-list">
+          <span class="tag">CI/CD</span>
+          <span class="tag">SRE</span>
+          <span class="tag">Kubernetes</span>
+        </div>
+      </article>
+
+      <article class="service-card">
+        <div class="service-icon">📊</div>
+        <h3>Data &amp; Analytics</h3>
+        <p>Собираем данные, строим витрины и создаём аналитические панели, которые помогают принимать решения в реальном времени.</p>
+        <div class="tag-list">
+          <span class="tag">ETL</span>
+          <span class="tag">BI</span>
+          <span class="tag">ML</span>
+        </div>
+      </article>
+
+      <article class="service-card">
+        <div class="service-icon">🤝</div>
+        <h3>Digital Experience</h3>
+        <p>Проектируем клиентские journeys, прототипируем интерфейсы и проверяем гипотезы на реальных пользователях.</p>
+        <div class="tag-list">
+          <span class="tag">UX</span>
+          <span class="tag">CRM</span>
+          <span class="tag">ChatOps</span>
+        </div>
+      </article>
+
+      <article class="service-card">
+        <div class="service-icon">🛡️</div>
+        <h3>Безопасность процессов</h3>
+        <p>Автоматизируем контроль доступа, проводим аудит и внедряем best practices по управлению рисками.</p>
+        <div class="tag-list">
+          <span class="tag">IAM</span>
+          <span class="tag">Audit</span>
+          <span class="tag">Compliance</span>
+        </div>
+      </article>
+    </div>
+
+    <div class="section-title" id="workflow">
+      <span>Как мы работаем</span>
+      <h2>Основано на прозрачности</h2>
+    </div>
+
+    <div class="workflow">
+      <div class="workflow-step">
+        <strong>01</strong>
+        <h4>Диагностика</h4>
+        <p>Интервьюируем стейкхолдеров, собираем текущие метрики и формируем карту целей.</p>
+      </div>
+      <div class="workflow-step">
+        <strong>02</strong>
+        <h4>Дорожная карта</h4>
+        <p>Фиксируем этапы и метрики успеха. Вы знаете, что будет сделано и когда.</p>
+      </div>
+      <div class="workflow-step">
+        <strong>03</strong>
+        <h4>Запуск и сопровождение</h4>
+        <p>Команды GTC внедряют сервисы и обеспечивают непрерывную поддержку 24/7.</p>
+      </div>
+    </div>
+
+    <section class="cta" id="cta">
+      <div>
+        <h3>Готовы подключиться?</h3>
+        <p>Расскажите нам о своей задаче, и мы предложим решение в течение трёх рабочих дней.</p>
+      </div>
+      <div class="hero-cta">
+        <button class="btn btn-primary" style="background:#fff;color:#1d4ed8;box-shadow:none;">Запланировать звонок</button>
+        <button class="btn btn-outline" style="color:#fff;border-color:rgba(255,255,255,0.4);">Написать в чат</button>
+      </div>
+    </section>
+
+    <footer>
+      © <span id="year"></span> GTC Servise. Мы создаём цифровые сервисы будущего.
+    </footer>
+  </div>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
