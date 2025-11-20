@@ -51,6 +51,19 @@ Execute the unit suite with:
 npm test
 ```
 
+## Diagnostics
+
+To capture the current cookie/redirect settings and a live entitlement lookup for a specific user, run the bundled helper from the
+`srv/gtc-auth` directory:
+
+```bash
+node scripts/post-auth-diagnose.js <gtc_user_id>
+```
+
+The script loads `.env`, prints the effective `AUTH_COOKIE_*`, `APP_BASE_URL`/`CHAT_REDIRECT_PATH`/`PAYMENT_PORTAL_URL` values, and
+shows the redirect decision alongside the latest row from `public.subscriptions` for the provided user ID. It exits with a non-
+zero status if PostgreSQL is unreachable or required variables are missing.
+
 ## Health check
 
 ```
