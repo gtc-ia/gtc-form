@@ -51,23 +51,32 @@ function evaluateEntitlementActivity(entitlement) {
     return { isActive: false, reason: 'missing_entitlement', details: baseDetails };
   }
 
+  const coerced = coerceBoolean(entitlement.is_active);
   const endDate = parseEndDate(entitlement.end_date);
   const hasFutureEndDate = endDate ? endDate.getTime() >= Date.now() : false;
-  if (hasFutureEndDate) {
-    return true;
-  }
-
   const hasActiveStatus = computeStatusActive(entitlement.status);
+  const details = {
+    ...baseDetails,
+    end_date_iso: endDate ? endDate.toISOString() : null
+  };
+
+  if (coerced === true) {
+    return { isActive: true, reason: 'explicit_true_flag', details };
+  }
+
+  if (hasFutureEndDate) {
+    return { isActive: true, reason: 'future_end_date', details };
+  }
+
   if (hasActiveStatus && !endDate) {
-    return true;
+    return { isActive: true, reason: 'active_status_no_end_date', details };
   }
 
-  const endDate = parseEndDate(entitlement.end_date);
-  if (!endDate) {
-    return true;
+  if (coerced === false) {
+    return { isActive: false, reason: 'explicit_false_flag', details };
   }
 
-  return false;
+  return { isActive: false, reason: 'inactive', details };
 }
 
 export function normalizeUserId(value) {
@@ -174,14 +183,20 @@ export async function determinePostAuthRedirect({
   const forwarded = extractForwardableParams(query);
 
   try {
-    const entitlement = await fetchEntitlement(normalizedId);
-    const isActive = isEntitlementActive(entitlement);
-    const location = isActive ? buildChatRedirect(forwarded) : buildPaymentRedirect(normalizedId, forwarded);
+    const entitlement = await fetchEntitlement(normalizedId, { logger });
+    const activity = evaluateEntitlementActivity(entitlement);
+    const lookupEmailsHashed = anonymizeEmailsForLog(entitlement?.lookup_emails);
+    const location = activity.isActive
+      ? buildChatRedirect(forwarded)
+      : buildPaymentRedirect(normalizedId, forwarded);
     return {
       location,
-      isActive,
+      isActive: activity.isActive,
+      activity,
       entitlement,
-      rawEntitlement: entitlement
+      rawEntitlement: entitlement,
+      normalizedUserId: normalizedId,
+      lookupEmailsHashed
     };
   } catch (error) {
     const fallback = buildPaymentRedirect(normalizedId, forwarded);
