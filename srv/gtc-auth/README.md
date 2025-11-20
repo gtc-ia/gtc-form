@@ -64,6 +64,9 @@ The script loads `.env`, prints the effective `AUTH_COOKIE_*`, `APP_BASE_URL`/`C
 shows the redirect decision alongside the latest row from `public.subscriptions` for the provided user ID. It exits with a non-
 zero status if PostgreSQL is unreachable or required variables are missing.
 
+For a production checklist that covers validating `gtc_user_id` entitlements on GTC1 and hardening redirect configuration, see
+[`Docs/gtc1-redirect-validation.md`](../../Docs/gtc1-redirect-validation.md).
+
 ## Health check
 
 ```
