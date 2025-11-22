@@ -44,7 +44,8 @@ function evaluateEntitlementActivity(entitlement) {
   const baseDetails = {
     status: entitlement?.status ?? null,
     end_date: entitlement?.end_date ?? null,
-    is_active_raw: entitlement?.is_active ?? null
+    is_active_raw: entitlement?.is_active ?? null,
+    activity_reason: entitlement?.activity_reason ?? null
   };
 
   if (!entitlement || typeof entitlement !== 'object') {

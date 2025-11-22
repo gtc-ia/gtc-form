@@ -31,6 +31,7 @@ Key variables for the post-auth redirect pipeline:
 - `CHAT_REDIRECT_PATH` — relative path to the chat workspace (defaults to `/chat/`).
 - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` — connection parameters for the GTC1 PostgreSQL cluster that stores subscription data.
 - `AUTH_COOKIE_NAME`, `AUTH_COOKIE_DOMAIN`, `AUTH_COOKIE_SECURE`, `AUTH_COOKIE_MAX_AGE_MS` — configure the transient cookie that stores `gtc_user_id` between `/auth/*` handlers and `/auth/finish`.
+- `SUBSCRIPTION_STALENESS_GRACE_MS` — optional grace window (in milliseconds) that keeps a subscription active if the row was recently updated even though the recorded `end_date` has passed; defaults to 14 days.
 
 ## Install & run
 
