@@ -31,6 +31,7 @@ Key variables for the post-auth redirect pipeline:
 - `CHAT_REDIRECT_PATH` — relative path to the chat workspace (defaults to `/chat/`).
 - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` — connection parameters for the GTC1 PostgreSQL cluster that stores subscription data.
 - `AUTH_COOKIE_NAME`, `AUTH_COOKIE_DOMAIN`, `AUTH_COOKIE_SECURE`, `AUTH_COOKIE_MAX_AGE_MS` — configure the transient cookie that stores `gtc_user_id` between `/auth/*` handlers and `/auth/finish`.
+- `SUBSCRIPTION_STALENESS_GRACE_MS` — optional grace window (in milliseconds) that keeps a subscription active if the row was recently updated even though the recorded `end_date` has passed; defaults to 14 days.
 
 ## Install & run
 
@@ -50,6 +51,22 @@ Execute the unit suite with:
 ```bash
 npm test
 ```
+
+## Diagnostics
+
+To capture the current cookie/redirect settings and a live entitlement lookup for a specific user, run the bundled helper from the
+`srv/gtc-auth` directory:
+
+```bash
+node scripts/post-auth-diagnose.js <gtc_user_id>
+```
+
+The script loads `.env`, prints the effective `AUTH_COOKIE_*`, `APP_BASE_URL`/`CHAT_REDIRECT_PATH`/`PAYMENT_PORTAL_URL` values, and
+shows the redirect decision alongside the latest row from `public.subscriptions` for the provided user ID. It exits with a non-
+zero status if PostgreSQL is unreachable or required variables are missing.
+
+For a production checklist that covers validating `gtc_user_id` entitlements on GTC1 and hardening redirect configuration, see
+[`Docs/gtc1-redirect-validation.md`](../../Docs/gtc1-redirect-validation.md).
 
 ## Health check
 
