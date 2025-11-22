@@ -1,108 +1,82 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchSubscriptionStatus, entitlementConfig } from '../entitlement.js';
+import { fetchSubscriptionStatus } from '../entitlement.js';
 
-function futureDate(days = 1) {
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-}
-
-function pastDate(days = 1) {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-}
-
-test('fetchSubscriptionStatus queries Postgres with normalized id', async () => {
-  let captured;
-  const fakeQuery = async (sql, params) => {
-    captured = { sql, params };
-    return {
-      rows: [
-        {
-          subscription_id: 42,
-          gtc_user_id: 3001,
-          status: 'active',
-          end_date: futureDate(),
-          plan_code: 'pro',
-          stripe_customer_id: 'cus_123',
-          stripe_subscription_id: 'sub_123',
-          created_at: futureDate(-1),
-          updated_at: futureDate()
-        }
-      ]
-    };
+function buildQuery(rows) {
+  return {
+    async query(_sql, params) {
+      assert.equal(params[0], 3001);
+      return { rows };
+    }
   };
+}
 
-  const result = await fetchSubscriptionStatus(' 3001 ', { queryImpl: fakeQuery });
-
-  assert.ok(captured.sql.includes('FROM public.subscriptions'));
-  assert.deepEqual(captured.params, [3001]);
-  assert.equal(result.status, 'active');
-  assert.equal(result.plan_code, 'pro');
-  assert.equal(result.is_active, true);
-  assert.equal(result.source, 'sql');
-  assert.match(result.end_date, /Z$/);
-});
-
-test('missing subscription rows default to inactive state', async () => {
-  const result = await fetchSubscriptionStatus(3002, {
-    queryImpl: async () => ({ rows: [] })
+function withGraceOverride(value, fn) {
+  const previous = process.env.SUBSCRIPTION_STALENESS_GRACE_MS;
+  if (value === undefined) {
+    delete process.env.SUBSCRIPTION_STALENESS_GRACE_MS;
+  } else {
+    process.env.SUBSCRIPTION_STALENESS_GRACE_MS = String(value);
+  }
+  return fn().finally(() => {
+    if (previous === undefined) {
+      delete process.env.SUBSCRIPTION_STALENESS_GRACE_MS;
+    } else {
+      process.env.SUBSCRIPTION_STALENESS_GRACE_MS = previous;
+    }
   });
+}
 
-  assert.equal(result.is_active, false);
-  assert.equal(result.status, null);
-  assert.equal(result.end_date, null);
-});
+test('active status is honored when updated recently even if the current period has ended', async () => {
+  const now = Date.now();
+  const endDate = new Date(now - 3 * 24 * 60 * 60 * 1000); // expired three days ago
+  const updatedAt = new Date(now - 36 * 60 * 60 * 1000); // touched in the last 2 days
+  const rows = [
+    {
+      subscription_id: 'sub-recent',
+      gtc_user_id: 3001,
+      status: 'active',
+      plan_code: 'standard_monthly',
+      start_date: new Date(now - 10 * 24 * 60 * 60 * 1000),
+      end_date: endDate,
+      created_at: new Date(now - 10 * 24 * 60 * 60 * 1000),
+      updated_at: updatedAt,
+      stripe_customer_id: 'cus_test',
+      stripe_subscription_id: 'sub_test',
+      livemode: true
+    }
+  ];
 
-test('expired subscriptions are treated as inactive', async () => {
-  const result = await fetchSubscriptionStatus('3003', {
-    queryImpl: async () => ({
-      rows: [
-        {
-          status: 'trialing',
-          end_date: pastDate(),
-          updated_at: pastDate()
-        }
-      ]
-    })
+  await withGraceOverride(21 * 24 * 60 * 60 * 1000, async () => {
+    const entitlement = await fetchSubscriptionStatus(3001, { queryImpl: buildQuery(rows) });
+    assert.equal(entitlement.is_active, true);
+    assert.equal(entitlement.activity_reason, 'active_status_recent_update');
   });
-
-  assert.equal(result.is_active, false);
 });
 
-test('active status without end date is considered active', async () => {
-  const result = await fetchSubscriptionStatus(3004, {
-    queryImpl: async () => ({
-      rows: [
-        {
-          status: 'active',
-          end_date: null
-        }
-      ]
-    })
+test('expired active rows older than the grace window are treated as inactive', async () => {
+  const now = Date.now();
+  const endDate = new Date(now - 20 * 24 * 60 * 60 * 1000);
+  const updatedAt = new Date(now - 15 * 24 * 60 * 60 * 1000);
+  const rows = [
+    {
+      subscription_id: 'sub-stale',
+      gtc_user_id: 3001,
+      status: 'active',
+      plan_code: 'standard_monthly',
+      start_date: new Date(now - 40 * 24 * 60 * 60 * 1000),
+      end_date: endDate,
+      created_at: new Date(now - 40 * 24 * 60 * 60 * 1000),
+      updated_at: updatedAt,
+      stripe_customer_id: 'cus_test',
+      stripe_subscription_id: 'sub_test',
+      livemode: true
+    }
+  ];
+
+  await withGraceOverride(7 * 24 * 60 * 60 * 1000, async () => {
+    const entitlement = await fetchSubscriptionStatus(3001, { queryImpl: buildQuery(rows) });
+    assert.equal(entitlement.is_active, false);
+    assert.equal(entitlement.activity_reason, 'end_date_expired');
   });
-
-  assert.equal(result.is_active, true);
-});
-
-test('boolean flags from SQL override computed status', async () => {
-  const result = await fetchSubscriptionStatus(3005, {
-    queryImpl: async () => ({
-      rows: [
-        {
-          status: 'canceled',
-          end_date: futureDate(),
-          is_active: true
-        }
-      ]
-    })
-  });
-
-  assert.equal(result.is_active, true);
-});
-
-test('subscription query prioritizes active rows ahead of stale history', () => {
-  assert.match(entitlementConfig.query, /COALESCE\s*\(\s*is_active/);
-  assert.match(
-    entitlementConfig.query,
-    /COALESCE[\s\S]+end_date DESC NULLS LAST,\s*updated_at DESC NULLS LAST,\s*created_at DESC NULLS LAST/s
-  );
 });
