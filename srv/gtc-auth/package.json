@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "NODE_ENV=development node server.js",
-    "test": "node --test tests"
+    "test": "node --test tests",
+    "diagnose": "node scripts/post-auth-diagnose.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
