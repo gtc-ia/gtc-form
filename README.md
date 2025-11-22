@@ -15,7 +15,7 @@
 ## 🌐 Live Endpoints
 
 - [Registration Form](https://app.gtstor.com)
-- [Chat + Auth single entrypoint](https://app.gtstor.com/gtc_chat/) (fallback alias: https://app.gtstor.com/gtc_chat.html)
+- [Chat + Auth single entrypoint](https://app.gtstor.com/gtc_chat/) (если каталог недоступен, используйте прямую ссылку https://app.gtstor.com/gtc_chat.html)
 - [n8n Workflow Automation](https://agent.gtstor.com)
 - [VS Code Server (OAuth2 Protected)](https://vs.gtstor.com)
 

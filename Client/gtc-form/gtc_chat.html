@@ -2,37 +2,354 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="0; url=/gtc_chat/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store" />
   <meta name="robots" content="noindex" />
-  <title>Перенаправление в GTC Chat</title>
+  <title>GTC Chat | Единая точка входа</title>
   <style>
-    body {
+    :root {
+      color-scheme: light;
+      --bg: #0b1021;
+      --panel: #11162a;
+      --panel-2: #111827;
+      --fg: #e5e7eb;
+      --muted: #94a3b8;
+      --primary: #22d3ee;
+      --primary-soft: rgba(34, 211, 238, 0.18);
+      --accent: #8b5cf6;
+      --border: #1f2937;
+      --success: #34d399;
+      --error: #f87171;
       font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-      background: #0b1021;
-      color: #e5e7eb;
-      display: grid;
-      place-items: center;
-      min-height: 100vh;
-      margin: 0;
+      background: radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.06), transparent 30%),
+        radial-gradient(circle at 80% 0%, rgba(139, 92, 246, 0.08), transparent 28%),
+        var(--bg);
+      color: var(--fg);
     }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+
+    header {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 28px 22px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      font-weight: 700;
+      font-size: 1.2rem;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .build {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
     main {
-      max-width: 520px;
-      padding: 24px 28px;
-      background: #11162a;
-      border: 1px solid #1f2937;
-      border-radius: 14px;
-      box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 0 22px 50px;
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) minmax(360px, 520px);
+      gap: 26px;
     }
-    h1 { margin: 0 0 10px; font-size: 1.25rem; }
-    p { margin: 0 0 14px; color: #94a3b8; }
-    a { color: #22d3ee; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+
+    @media (max-width: 960px) {
+      main { grid-template-columns: 1fr; }
+      header { padding: 20px; }
+    }
+
+    .hero {
+      background: linear-gradient(145deg, rgba(34, 211, 238, 0.12), rgba(139, 92, 246, 0.1));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 28px;
+      box-shadow: 0 25px 55px rgba(0, 0, 0, 0.35);
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    h1 { margin: 0; font-size: clamp(1.9rem, 3.5vw, 2.6rem); line-height: 1.1; }
+    p { margin: 0; color: var(--muted); line-height: 1.6; }
+
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+    .btn {
+      padding: 12px 16px;
+      border: 1px solid transparent;
+      border-radius: 14px;
+      cursor: pointer;
+      font-weight: 700;
+      color: #0b1021;
+      background: var(--primary);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 20px 40px rgba(34, 211, 238, 0.35);
+    }
+
+    .btn.secondary {
+      background: transparent;
+      color: var(--fg);
+      border-color: var(--border);
+      box-shadow: none;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent), var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 22px;
+      box-shadow: 0 25px 65px rgba(0, 0, 0, 0.4);
+    }
+
+    .panel h2 { margin: 0 0 10px; font-size: 1.3rem; }
+    .panel small { color: var(--muted); }
+
+    label { display: block; margin: 10px 0 6px; color: #cbd5e1; }
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--fg);
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.18);
+    }
+
+    .grid { display: grid; gap: 12px; }
+    .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+
+    .muted { color: var(--muted); font-size: 0.95rem; }
+    .status { margin-top: 12px; font-weight: 600; }
+    .status.success { color: var(--success); }
+    .status.error { color: var(--error); }
+
+    .inline-link { color: var(--primary); font-weight: 600; text-decoration: none; }
+    .inline-link:hover { text-decoration: underline; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: rgba(139, 92, 246, 0.12);
+      color: #e9d5ff;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    .list { margin: 10px 0 0; padding-left: 18px; color: var(--muted); line-height: 1.5; }
   </style>
 </head>
 <body>
+  <header>
+    <div class="brand">GTC · Chat</div>
+    <div class="pill">Единая точка входа</div>
+    <div class="build">Сборка: <span id="buildTag">—</span></div>
+  </header>
   <main>
-    <h1>Перенаправляем в чат</h1>
-    <p>Если перенаправление не произошло автоматически, откройте <a href="/gtc_chat/">app.gtstor.com/gtc_chat/</a>.</p>
+    <section class="hero">
+      <h1>Чат и регистрация в одном окне</h1>
+      <p>Используйте эту страницу, чтобы зарегистрироваться, подтвердить email и сразу перейти в чат на <strong>app.gtstor.com</strong>. Все запросы уходят на бекенд GTC1 (<code>/auth/*</code>) без сторонних доменов и лишних редиректов.</p>
+      <div class="cta-row">
+        <button class="btn" id="openChat">Перейти в чат</button>
+        <button class="btn secondary" id="resendLink">Отправить письмо повторно</button>
+      </div>
+      <div class="badge">Поддерживаются вход и регистрация по email / паролю</div>
+    </section>
+
+    <section class="panel">
+      <h2>Вход</h2>
+      <small>Уже есть аккаунт? Авторизуйтесь и мы перенаправим вас в чат.</small>
+      <div class="grid" style="margin-top:12px">
+        <div class="row">
+          <div>
+            <label for="loginEmail">Email</label>
+            <input id="loginEmail" type="email" autocomplete="email" />
+          </div>
+          <div>
+            <label for="loginPassword">Пароль</label>
+            <input id="loginPassword" type="password" autocomplete="current-password" />
+          </div>
+        </div>
+        <button class="btn" id="loginSubmit">Войти и открыть чат</button>
+        <div id="loginStatus" class="status"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Регистрация</h2>
+      <small>Создайте аккаунт и подтвердите email, чтобы попасть в чат.</small>
+      <div class="grid" style="margin-top:12px">
+        <label for="signupName">Имя (необязательно)</label>
+        <input id="signupName" type="text" autocomplete="name" />
+
+        <div class="row">
+          <div>
+            <label for="signupEmail">Email</label>
+            <input id="signupEmail" type="email" autocomplete="email" />
+          </div>
+          <div>
+            <label for="signupPassword">Пароль</label>
+            <input id="signupPassword" type="password" autocomplete="new-password" />
+          </div>
+        </div>
+
+        <button class="btn" id="signupSubmit">Зарегистрироваться</button>
+        <div id="signupStatus" class="status"></div>
+        <p class="muted">После подтверждения почты нажмите «Перейти в чат» — откроется <code>/auth/finish</code>, который определит, есть ли у вас доступ.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Что происходит после входа</h2>
+      <p class="muted">Мы ставим служебную cookie <code>gtc_user_id</code> с доменом <strong>gtstor.com</strong> и вызываем <code>/auth/finish</code>. Если подписка активна, вы попадёте в чат. Иначе откроется страница оплаты.</p>
+      <ul class="list">
+        <li>Все запросы: <code>/auth/login</code>, <code>/auth/register</code>, <code>/auth/request_email_verification</code>.</li>
+        <li>Кнопка «Перейти в чат» отправит вас на <code>/auth/finish</code> с сохранением query-параметров.</li>
+        <li>Данные остаются на сервере GTC1 — без переходов на Vercel.</li>
+      </ul>
+    </section>
   </main>
+
+  <script>
+    const buildTag = '2025-02-17T00:00:00Z';
+    const tagNode = document.getElementById('buildTag');
+    if (tagNode) { tagNode.textContent = buildTag; }
+
+    const loginEmail = document.getElementById('loginEmail');
+    const loginPassword = document.getElementById('loginPassword');
+    const loginStatus = document.getElementById('loginStatus');
+    const loginSubmit = document.getElementById('loginSubmit');
+
+    const signupName = document.getElementById('signupName');
+    const signupEmail = document.getElementById('signupEmail');
+    const signupPassword = document.getElementById('signupPassword');
+    const signupStatus = document.getElementById('signupStatus');
+    const signupSubmit = document.getElementById('signupSubmit');
+
+    const openChat = document.getElementById('openChat');
+    const resendLink = document.getElementById('resendLink');
+
+    function setStatus(el, message, type) {
+      el.textContent = message;
+      el.className = `status ${type}`;
+    }
+
+    async function postJSON(path, payload) {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        let body = {};
+        try { body = await res.json(); } catch (e) {}
+        const err = new Error('Request failed');
+        err.status = res.status;
+        err.body = body;
+        throw err;
+      }
+      return res.json();
+    }
+
+    function goToFinish() {
+      const qs = window.location.search || '';
+      window.location.href = `/auth/finish${qs}`;
+    }
+
+    loginSubmit.addEventListener('click', async () => {
+      loginSubmit.disabled = true;
+      setStatus(loginStatus, 'Выполняем вход...', '');
+      try {
+        const email = loginEmail.value.trim();
+        const password = loginPassword.value;
+        if (!email || !password) {
+          setStatus(loginStatus, 'Укажите email и пароль.', 'error');
+          return;
+        }
+        await postJSON('/auth/login', { email, password });
+        setStatus(loginStatus, 'Успешно. Открываем чат...', 'success');
+        goToFinish();
+      } catch (err) {
+        const reason = err.body?.code || `Ошибка ${err.status || ''}`;
+        setStatus(loginStatus, `Не удалось войти: ${reason}`, 'error');
+      } finally {
+        loginSubmit.disabled = false;
+      }
+    });
+
+    signupSubmit.addEventListener('click', async () => {
+      signupSubmit.disabled = true;
+      setStatus(signupStatus, 'Отправляем данные...', '');
+      try {
+        const email = signupEmail.value.trim();
+        const password = signupPassword.value;
+        const name = signupName.value.trim();
+        if (!email || !password) {
+          setStatus(signupStatus, 'Нужны email и пароль.', 'error');
+          return;
+        }
+        await postJSON('/auth/register', { email, password, name });
+        setStatus(signupStatus, 'Письмо с подтверждением отправлено. Проверьте почту.', 'success');
+      } catch (err) {
+        const reason = err.body?.code || `Ошибка ${err.status || ''}`;
+        setStatus(signupStatus, `Не удалось зарегистрировать: ${reason}`, 'error');
+      } finally {
+        signupSubmit.disabled = false;
+      }
+    });
+
+    resendLink.addEventListener('click', async () => {
+      const email = signupEmail.value.trim() || loginEmail.value.trim();
+      setStatus(signupStatus, '', '');
+      setStatus(loginStatus, '', '');
+      if (!email) {
+        setStatus(signupStatus, 'Укажите email в форме регистрации или входа.', 'error');
+        return;
+      }
+      resendLink.disabled = true;
+      try {
+        await postJSON('/auth/request_email_verification', { email });
+        setStatus(signupStatus, 'Если email подтверждён, мы сообщим об этом. Иначе отправили новое письмо.', 'success');
+      } catch (err) {
+        setStatus(signupStatus, 'Не удалось запросить повторное письмо. Попробуйте позже.', 'error');
+      } finally {
+        resendLink.disabled = false;
+      }
+    });
+
+    openChat.addEventListener('click', goToFinish);
+  </script>
 </body>
 </html>
