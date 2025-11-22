@@ -66,10 +66,19 @@ if ! rsync -a --delete "$CLIENT_DIR"/ "$BUILD_DIR"/; then
   fail 30 "Failed to copy client application files"
 fi
 
+# Ensure the unified chat/auth entrypoint is present so deployments fail fast
+# instead of silently shipping a bundle without /gtc_chat/.
+if [ ! -d "$BUILD_DIR/gtc_chat" ] || [ ! -f "$BUILD_DIR/gtc_chat/index.html" ]; then
+  fail 31 "Unified chat entrypoint missing (expected $BUILD_DIR/gtc_chat/index.html)"
+fi
+if [ ! -f "$BUILD_DIR/gtc_chat.html" ]; then
+  fail 32 "Fallback alias missing (expected $BUILD_DIR/gtc_chat.html)"
+fi
+
 if [ -d "$ASSETS_DIR" ]; then
   mkdir -p "$BUILD_DIR/assets"
   if ! rsync -a --delete "$ASSETS_DIR"/ "$BUILD_DIR/assets"/; then
-    fail 31 "Failed to copy shared asset files"
+    fail 33 "Failed to copy shared asset files"
   fi
 fi
 
