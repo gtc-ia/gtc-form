@@ -125,18 +125,21 @@
     const passwordInput = document.getElementById("password");
     const strengthDisplay = document.getElementById("passwordStrength");
 
+    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+
     modeSelect.addEventListener("change", function () {
       const isRegister = this.value === "register";
       nameField.style.display = isRegister ? "block" : "none";
+      nameField.querySelector("input").required = isRegister;
+      passwordInput.autocomplete = isRegister ? "new-password" : "current-password";
       document.getElementById("executionMode").value = this.value;
     });
 
     passwordInput.addEventListener("input", () => {
       const value = passwordInput.value;
-      const regex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
       if (!value) {
         strengthDisplay.textContent = "";
-      } else if (regex.test(value)) {
+      } else if (passwordRegex.test(value)) {
         strengthDisplay.textContent = "Password strength: Good";
         strengthDisplay.className = "password-strength success";
       } else {
@@ -149,8 +152,7 @@
       e.preventDefault();
 
       const password = passwordInput.value;
-      const regex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
-      if (!regex.test(password)) {
+      if (!passwordRegex.test(password)) {
         alert("Password must be at least 8 characters and include letters, numbers, and special characters.");
         return;
       }
@@ -170,10 +172,16 @@
           body: JSON.stringify(json),
         });
 
-        // После успешной отправки скрыть форму и показать сообщение
+        if (!response.ok) {
+          throw new Error("Server returned status " + response.status);
+        }
+
+        const isRegister = modeSelect.value === "register";
         form.style.display = "none";
         confirmation.style.display = "block";
-        confirmation.textContent = "✅ You submitted a registration form. Please check your email inbox.";
+        confirmation.textContent = isRegister
+          ? "✅ You submitted a registration form. Please check your email inbox."
+          : "✅ Login request submitted. Please check your email inbox.";
         confirmation.className = "confirmation info";
       } catch (err) {
         console.error("Form submission error:", err);
