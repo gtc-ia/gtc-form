@@ -101,7 +101,7 @@ app.post('/auth/check_email', async (req, res) => {
 
 app.post('/auth/register', async (req, res) => {
   const { email, password, name } = req.body || {};
-  if (!email || !password || !name) return res.status(400).json({ code: 'bad_request' });
+  if (!email || !password) return res.status(400).json({ code: 'bad_request' });
   const em = String(email).toLowerCase();
   try {
     const exists = await getEmailRow(em);

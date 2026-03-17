@@ -56,8 +56,8 @@ Don't have an account?
 <a href="#" id="linkGoRegister" class="link">Register</a> 
 </div> 
 
-<div class="or"><span class="muted center" style="min-width:40px">or</span></div> 
-<button id="btnGoogle" class="gbtn">Continue with Google</button> 
+<div id="orSeparator" class="or hidden"><span class="muted center" style="min-width:40px">or</span></div> 
+<button id="btnGoogle" class="gbtn hidden">Continue with Google</button> 
 <div id="msgEmail" class="err hidden"></div> 
 </div> 
 
@@ -67,5 +67,207 @@ Don't have an account?
 <label for="loginPassword">Password</label> 
 <input id="loginPassword" type="password" autocomplete="current-password" required/> 
 <div style="height:10px"></div> 
-<button id="btnLogin">Login</button> 
-<div class=
+<button id="btnLogin">Login</button>
+<div id="msgLogin" class="err hidden"></div>
+<div class="center muted" style="margin-top:12px">
+<a href="#" id="linkBackFromLogin" class="link">← Use a different email</a>
+</div>
+</div>
+
+<!-- STEP 2B: register -->
+<div id="stepRegister" class="hidden">
+<div class="muted" style="margin-bottom:6px" id="registerEmailLabel"></div>
+<label for="regName">Name <span class="muted">(optional)</span></label>
+<input id="regName" type="text" autocomplete="name"/>
+<label for="regPassword">Password</label>
+<input id="regPassword" type="password" autocomplete="new-password" required/>
+<div class="muted" style="margin-top:4px;font-size:.85rem">Min 8 chars, with letter, digit and special character</div>
+<label for="regPassword2">Confirm password</label>
+<input id="regPassword2" type="password" autocomplete="new-password" required/>
+<div style="height:10px"></div>
+<button id="btnRegister">Create account</button>
+<div id="msgRegister" class="err hidden"></div>
+<div class="center muted" style="margin-top:12px">
+<a href="#" id="linkBackFromRegister" class="link">← Back</a>
+</div>
+</div>
+
+<!-- STEP 3: email sent -->
+<div id="stepEmailSent" class="hidden">
+<div class="ok" style="margin-bottom:14px;font-size:1rem" id="emailSentMsg"></div>
+<p class="muted center">Check your inbox and click the link to verify your email, then return here to log in.</p>
+<div style="height:10px"></div>
+<button id="btnBackToStart">Back to start</button>
+</div>
+
+</div>
+</main>
+<script>
+// Set GOOGLE_CLIENT_ID to your OAuth 2.0 client ID from Google Cloud Console
+// (APIs & Services → Credentials → OAuth 2.0 Client IDs)
+const GOOGLE_CLIENT_ID = '';
+
+function show(id) {
+  ['stepEmail','stepLogin','stepRegister','stepEmailSent'].forEach(function(s) {
+    document.getElementById(s).classList.add('hidden');
+  });
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function setErr(id, msg) {
+  var el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.toggle('hidden', !msg);
+}
+
+async function api(path, body) {
+  var res = await fetch(path, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  var data = {};
+  try { data = await res.json(); } catch(e) {}
+  if (!res.ok) {
+    var err = new Error(data.code || ('HTTP ' + res.status));
+    err.code = data.code;
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+function isPasswordStrong(pw) {
+  return pw.length >= 8 && /[A-Za-z]/.test(pw) && /\d/.test(pw) && /[^A-Za-z0-9]/.test(pw);
+}
+
+var currentEmail = '';
+
+document.getElementById('btnContinue').addEventListener('click', async function() {
+  setErr('msgEmail','');
+  var email = document.getElementById('email').value.trim();
+  if (!email) { setErr('msgEmail','Please enter your email.'); return; }
+  this.disabled = true;
+  try {
+    var data = await api('/auth/check_email', {email: email});
+    currentEmail = email;
+    if (data.exists) {
+      document.getElementById('loginEmailLabel').textContent = email;
+      show('stepLogin');
+    } else {
+      document.getElementById('registerEmailLabel').textContent = email;
+      show('stepRegister');
+    }
+  } catch(e) {
+    setErr('msgEmail', 'Could not reach the server. Please try again.');
+  } finally {
+    this.disabled = false;
+  }
+});
+
+document.getElementById('linkGoRegister').addEventListener('click', function(e) {
+  e.preventDefault();
+  var email = document.getElementById('email').value.trim();
+  if (email) {
+    currentEmail = email;
+    document.getElementById('registerEmailLabel').textContent = email;
+  }
+  show('stepRegister');
+});
+
+document.getElementById('btnLogin').addEventListener('click', async function() {
+  setErr('msgLogin','');
+  var pw = document.getElementById('loginPassword').value;
+  if (!pw) { setErr('msgLogin','Please enter your password.'); return; }
+  this.disabled = true;
+  try {
+    await api('/auth/login', {email: currentEmail, password: pw});
+    window.location.href = '/auth/finish' + window.location.search;
+  } catch(e) {
+    if (e.status === 403) {
+      setErr('msgLogin','Email not verified. Please check your inbox.');
+    } else {
+      setErr('msgLogin','Invalid email or password.');
+    }
+  } finally {
+    this.disabled = false;
+  }
+});
+
+document.getElementById('linkBackFromLogin').addEventListener('click', function(e) {
+  e.preventDefault();
+  setErr('msgLogin','');
+  document.getElementById('loginPassword').value = '';
+  show('stepEmail');
+});
+
+document.getElementById('btnRegister').addEventListener('click', async function() {
+  setErr('msgRegister','');
+  var pw = document.getElementById('regPassword').value;
+  var pw2 = document.getElementById('regPassword2').value;
+  var name = document.getElementById('regName').value.trim();
+  if (!isPasswordStrong(pw)) {
+    setErr('msgRegister','Password must be at least 8 characters and contain a letter, digit, and special character.');
+    return;
+  }
+  if (pw !== pw2) { setErr('msgRegister','Passwords do not match.'); return; }
+  this.disabled = true;
+  try {
+    await api('/auth/register', {email: currentEmail, password: pw, name: name});
+    document.getElementById('emailSentMsg').textContent = 'Verification email sent to ' + currentEmail + '.';
+    show('stepEmailSent');
+  } catch(e) {
+    if (e.code === 'email_taken') {
+      setErr('msgRegister','This email is already registered. Try logging in.');
+    } else if (e.code === 'weak_password') {
+      setErr('msgRegister','Password is too weak. Add letters, digits and special characters.');
+    } else {
+      setErr('msgRegister','Registration failed. Please try again.');
+    }
+  } finally {
+    this.disabled = false;
+  }
+});
+
+document.getElementById('linkBackFromRegister').addEventListener('click', function(e) {
+  e.preventDefault();
+  setErr('msgRegister','');
+  show('stepEmail');
+});
+
+document.getElementById('btnBackToStart').addEventListener('click', function() {
+  show('stepEmail');
+  document.getElementById('email').value = '';
+  document.getElementById('regPassword').value = '';
+  document.getElementById('regPassword2').value = '';
+  document.getElementById('regName').value = '';
+  document.getElementById('loginPassword').value = '';
+});
+
+if (GOOGLE_CLIENT_ID) {
+  var gsi = document.createElement('script');
+  gsi.src = 'https://accounts.google.com/gsi/client';
+  gsi.async = true;
+  document.head.appendChild(gsi);
+  var btnGoogle = document.getElementById('btnGoogle');
+  btnGoogle.classList.remove('hidden');
+  document.getElementById('orSeparator').classList.remove('hidden');
+  btnGoogle.addEventListener('click', function() {
+    if (typeof google === 'undefined') { return; }
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: async function(resp) {
+        try {
+          await api('/auth/google', {google_credential: resp.credential});
+          window.location.href = '/auth/finish' + window.location.search;
+        } catch(e) {
+          setErr('msgEmail','Google sign-in failed. Please try again.');
+        }
+      }
+    });
+    google.accounts.id.prompt();
+  });
+}
+</script>
+</body>
+</html>
