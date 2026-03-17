@@ -1,2 +1,8 @@
 node_modules/
 srv/gtc-auth/node_modules/
+.env
+.env.local
+.deploy/
+*.log
+*.bak
+
